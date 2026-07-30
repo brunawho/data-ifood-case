@@ -1,0 +1,23 @@
+# Dados: a landing e o warehouse são reconstruíveis a partir da origem.
+# Versionar ~2 GiB de parquet num repo de case é ruído, não entrega.
+data/
+*.parquet
+*.part
+
+# Spark / Delta locais
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
