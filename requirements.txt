@@ -1,14 +1,25 @@
-# Ingestão
+# Dependências do pipeline.
+#
+# IMPORTANTE: no Databricks, NADA deste arquivo precisa ser instalado. O runtime
+# já provê pyspark, delta e requests. Este arquivo existe para execução local e
+# para deixar explícitas as versões contra as quais o código foi escrito.
+#
+# Instalação local:
+#     pip install -r requirements.txt
+#
+# Requer JDK 8, 11 ou 17 — o PySpark 3.5 não funciona em Java 21+.
+
+# --- Ingestão -------------------------------------------------------------- #
+# Download dos arquivos da NYC TLC. Único uso: HTTP com stream e retry.
 requests==2.32.3
 
-# Processamento — só necessários para execução LOCAL.
-# No Databricks o runtime já provê pyspark e delta; não instale lá.
+# --- Processamento --------------------------------------------------------- #
+# delta-spark 3.2 é a versão compatível com PySpark 3.5. O par de versões
+# importa: combinações fora da matriz oficial falham na inicialização da sessão.
 pyspark==3.5.1
 delta-spark==3.2.0
 
-# Análise exploratória
-pandas==2.2.2
-matplotlib==3.9.2
-
-# Qualidade
+# --- Desenvolvimento ------------------------------------------------------- #
+# Testes das funções puras (classificação de qualidade, resolução de caminhos).
+# Não são necessários para executar o pipeline.
 pytest==8.3.3

@@ -1,105 +1,253 @@
-# Case Técnico — Data Architect (iFood)
+# Case Técnico — Data Architect | iFood
 
 Pipeline de ingestão, disponibilização e análise dos dados de corridas de
-*yellow taxi* da NYC TLC (janeiro a maio de 2023).
+*yellow taxi* da cidade de Nova York (NYC TLC), de janeiro a maio de 2023.
 
-> **Status:** em desenvolvimento. Etapas concluídas: landing e bronze.
+**16.180.102 corridas** processadas, disponibilizadas para consulta SQL e
+analisadas para responder às duas perguntas do case.
+
+| Entregável | Onde |
+|---|---|
+| Respostas às perguntas | [`analysis/respostas.md`](analysis/respostas.md) |
+| Análise exploratória e regras de limpeza | [`docs/achados-eda.md`](docs/achados-eda.md) |
+| Pipeline | [`src/`](src/) e [`notebooks/`](notebooks/) |
+
+---
 
 ## Arquitetura
 
-Arquitetura *medallion* sobre Delta Lake, com metadados no Unity Catalog.
+```mermaid
+flowchart LR
+    A[NYC TLC<br/>CloudFront] -->|requests| B[Landing<br/>UC Volume]
+    B -->|PySpark| C[Bronze<br/>Delta]
+    C -->|PySpark| D[Silver<br/>Delta]
+    C -.->|descartes| Q[Quarentena<br/>Delta]
+    D -->|PySpark| E[Gold<br/>Delta]
+    D -->|SQL| U[Usuário final]
+    E -->|SQL| U
+```
+
+Arquitetura *medallion* sobre Delta Lake, com metadados e governança no Unity
+Catalog.
 
 | Camada | Objeto | Responsabilidade |
 |---|---|---|
-| Landing | `/Volumes/workspace/raw/landing` | Arquivos originais, imutáveis, sem interpretação. Permite reprocessar sem depender da origem. |
-| Bronze | `workspace.bronze.yellow_tripdata` | Schema da origem com tipos canonizados + colunas de auditoria. Nenhum registro filtrado. |
-| Silver | `workspace.silver.fact_yellow_trips` | Camada de consumo: dados limpos e tipados, com as colunas exigidas pelo case. |
-| Gold | `workspace.gold.*` | Agregações que respondem às perguntas analíticas. |
+| **Landing** | `/Volumes/workspace/raw/landing` | Arquivos originais, byte a byte, imutáveis. Sem interpretação. |
+| **Bronze** | `workspace.bronze.yellow_tripdata` | Schema da origem com tipos canonizados + auditoria. Nenhum registro filtrado. |
+| **Silver** | `workspace.silver.fact_yellow_trips` | Camada de consumo. Limpa, tipada, com colunas derivadas e sinalizações. |
+| **Quarentena** | `workspace.silver.fact_yellow_trips_quarantine` | Registros descartados, com o motivo. |
+| **Gold** | `workspace.gold.*` | Agregações que respondem às perguntas do case. |
+
+### Por que quatro camadas
+
+Cada uma resolve um problema que a anterior não pode resolver:
+
+- A **landing** permite reprocessar tudo sem depender de a origem estar no ar, e
+  torna auditável qualquer decisão de limpeza feita adiante.
+- A **bronze** torna os arquivos consultáveis por SQL sem ainda tomar decisão
+  nenhuma sobre o conteúdo.
+- A **silver** aplica as regras de qualidade e entrega o dado pronto para
+  consumo genérico.
+- A **gold** materializa interpretações específicas — que são descartáveis e
+  reconstruíveis, ao contrário das camadas abaixo.
+
+---
 
 ## Decisões técnicas
 
-**Databricks Free Edition como runtime.** O case recomenda o Community
-Edition, que foi aposentado no fim de 2025. O substituto é o Free Edition,
-serverless e com Unity Catalog nativo.
+### Plataforma
 
-**Catálogo `workspace`.** O Free Edition não permite criar catálogo novo (falta
-storage credential). Em ambiente real haveria catálogo por domínio e por
-ambiente; aqui os schemas ficam sob `workspace`.
+**Databricks Free Edition.** O case recomenda o Community Edition, aposentado no
+fim de 2025. O Free Edition é o substituto e traz Unity Catalog nativo, o que
+permite governança de verdade (catálogo, schema, volume, permissionamento) em
+vez de arquivos soltos.
 
-**Partição nomeada `_ref_period`, não `data da corrida`.** Cada arquivo mensal
-da TLC contém corridas com *pickup* fora do próprio mês. Nomear a partição como
-"referência do arquivo" mantém essa distinção explícita desde a landing.
+**Catálogo `workspace`.** O Free Edition não permite criar catálogo novo, por
+falta de *storage credential*. Em ambiente real haveria catálogo por domínio e
+por ambiente (`ifood_dev`, `ifood_prod`); aqui os schemas ficam sob `workspace`.
 
-**CAST no plano do Spark, não no leitor de Parquet.** Os parquets mensais não
-têm schema estável (mesma coluna como `int32` num mês e `int64` noutro). A
-leitura é feita arquivo por arquivo, com conversão posterior para o tipo
-canônico — o que evita `SchemaColumnConvertNotSupportedException`.
+**Restrições de compute serverless mapeadas.** Três limitações do ambiente
+afetaram o código e estão tratadas explicitamente:
+
+| Limitação | Contorno adotado |
+|---|---|
+| `input_file_name()` não suportado | `_metadata.file_path` |
+| `.cache()` / `PERSIST` não suportado | Contagens lidas do log de transação Delta |
+| Criação de catálogo bloqueada | Schemas sob o catálogo `workspace` |
+
+### Modelagem
 
 **`TIMESTAMP_NTZ` preservado.** A origem entrega os horários como
-`timestamp_ntz` (*no time zone*), o que é semanticamente correto: a TLC registra
-hora local de Nova York, sem offset. Converter para `TIMESTAMP` faria o Spark
-interpretar o horário de parede no fuso da sessão, criando uma dependência
-implícita de configuração — e a pergunta 2 do case é justamente sobre hora do
-dia.
+`timestamp_ntz` (*no time zone*), e está correta: a TLC registra hora local de
+Nova York, sem *offset*. Converter para `TIMESTAMP` faria o Spark interpretar o
+horário de parede no fuso da sessão, criando dependência implícita de
+configuração — e a pergunta 2 do case é justamente sobre hora do dia.
 
-**Idempotência em todas as camadas.** A landing compara tamanho com a origem
-antes de baixar; a bronze usa `replaceWhere` por partição. Reexecutar o
-pipeline não duplica dado, e reprocessar um mês não afeta os outros.
+**Competência derivada da corrida, nunca do arquivo.** A análise exploratória
+mostrou que os cinco arquivos mensais contêm corridas de **17 meses distintos**,
+e que cada competência recebe corridas de **dois ou três arquivos diferentes**.
+Agrupar por arquivo de origem produziria resposta errada. A partição da bronze
+chama-se `_ref_period` ("referência do arquivo") para manter essa distinção
+explícita; a silver particiona por `pickup_year_month`, derivado da data real.
 
-## Estrutura
+**CAST no plano do Spark, não no leitor de Parquet.** Os arquivos mensais não
+têm schema estável — a mesma coluna aparece como `int32` num mês e `int64`
+noutro. A leitura é feita arquivo por arquivo, com conversão posterior ao tipo
+canônico, o que evita `SchemaColumnConvertNotSupportedException`.
 
-```
-├─ notebooks/     # Orquestradores executados no Databricks
-│  ├─ _setup.py           # Configuração compartilhada (%run pelos demais)
-│  ├─ 01_landing.py       # Origem TLC -> Volume
-│  └─ 02_bronze.py        # Landing -> Delta
-├─ src/
-│  ├─ config.py         # Configuração central (isola local x Databricks)
-│  ├─ ingestion/        # Origem -> landing
-│  ├─ transform/        # Landing -> bronze -> silver -> gold
-│  └─ utils/            # SparkSession e namespaces
-├─ analysis/      # Respostas às perguntas do case
-├─ tests/
-└─ requirements.txt
-```
+### Qualidade de dados
 
-Os notebooks são apenas orquestradores: chamam funções de `src/` e validam o
-resultado. Nenhuma regra de negócio vive dentro deles — notebook não é testável
-com `pytest` nem revisável em pull request.
+**Descartar apenas o comprovadamente inválido.** A silver remove 6.284
+registros — **0,039% da base** — em duas categorias: corrida fora do escopo
+temporal (104) e corrida com duração não-positiva (6.180). Tudo o mais é
+preservado e **sinalizado** em colunas `flag_*`.
 
-A numeração indica a ordem de execução. O notebook de EDA fica fora de qualquer
-execução automatizada de propósito: análise exploratória é investigação humana
-que justifica as regras da silver, não etapa de pipeline.
+O caso mais relevante são os 143.792 lançamentos com `total_amount` ≤ 0. Não são
+corrupção: a TLC registra estornos e ajustes contábeis como linhas negativas.
+Removê-los na silver significaria decidir, em nome de todos os futuros
+consumidores da tabela, que ninguém jamais vai querer analisar estorno.
+Decisões de métrica pertencem à gold.
+
+**Nada é descartado silenciosamente.** O que sai da silver vai para uma tabela
+de quarentena com o motivo, e a validação confere que silver + quarentena = bronze,
+exatamente.
+
+O dimensionamento de cada problema, com o número que o sustenta, está em
+[`docs/achados-eda.md`](docs/achados-eda.md).
+
+### Engenharia
+
+**Idempotência em todas as camadas, verificada empiricamente.** A landing
+compara o tamanho com a origem antes de baixar; a bronze usa `replaceWhere` por
+partição. O notebook `02_bronze` inclui a consulta que prova a propriedade —
+executar a carga duas vezes não produz partição com dois lotes de ingestão.
+
+**A silver é reconstruída por completo, e isso é intencional.** Como a silver é
+particionada pela data real da corrida e a bronze pelo arquivo de origem, uma
+partição da bronze alimenta várias da silver. Não há como recarregar um mês
+isolado com garantia de completude sem varrer toda a bronze — um "incremental"
+aqui seria uma reconstrução total com passos extras e risco de inconsistência.
+
+**Lógica em módulos, não em notebooks.** Os notebooks apenas orquestram e
+validam; toda regra vive em `src/`, versionada, revisável em *pull request* e
+testável. Notebook que concentra regra de negócio não é nenhuma dessas coisas.
+
+**Linhagem registrada.** A landing mantém um manifesto (`JSONL`) com origem,
+destino, tamanho, *checksum* SHA-256 e horário de cada arquivo ingerido. As
+tabelas Delta guardam o histórico de transações. Se um número for questionado,
+é possível rastrear até o byte de origem.
+
+---
+
+## Respostas
+
+### Pergunta 1 — média de `total_amount` por mês
+
+O enunciado admite duas leituras, com respostas separadas por seis ordens de
+grandeza. Ambas são entregues:
+
+| Leitura | Resposta |
+|---|---|
+| **(a)** Ticket médio por corrida | **US$ 28,26** (simples) / **US$ 28,30** (ponderada) |
+| **(b)** Faturamento mensal da frota | **US$ 90.780.494,37** |
+
+### Pergunta 2 — média de passageiros por hora (maio/2023)
+
+A média varia de **1,2348** (6h) a **1,4367** (2h) — amplitude de 16,4%.
+
+O padrão tem três fases: ocupação alta na madrugada (uso social, grupos
+retornando juntos), vale no início da manhã (deslocamento individual para o
+trabalho) e recuperação progressiva ao longo do dia.
+
+Tabelas completas, decisões de tratamento e observações em
+[`analysis/respostas.md`](analysis/respostas.md).
+
+---
 
 ## Execução
 
 ### Databricks (recomendado)
 
 1. **Workspace → Create → Git folder**, apontando para este repositório
-2. Executar os notebooks na ordem: `01_landing`, `02_bronze`
+2. Executar os notebooks na ordem:
 
-Os schemas e o Volume são criados pelo próprio pipeline, de forma idempotente.
+```
+01_landing  →  02_bronze  →  04_silver  →  05_analise
+```
+
+Schemas, volume e tabelas são criados pelo próprio pipeline, de forma
+idempotente. Nenhuma dependência precisa ser instalada: o runtime já provê
+PySpark, Delta e `requests`.
+
+O notebook `03_eda` é opcional — documenta a investigação que fundamentou as
+regras de limpeza. Fica fora de qualquer execução automatizada de propósito:
+análise exploratória é investigação humana, não etapa de pipeline.
 
 ### Local
 
-Requer JDK 8, 11 ou 17 (não 21+) e ~6 GiB de disco.
+Requer **JDK 8, 11 ou 17** (o PySpark 3.5 não funciona em Java 21+) e ~2 GiB de
+disco.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m src.ingestion.landing     # origem -> landing
-python -m src.transform.bronze      # landing -> bronze
+
+python -m src.ingestion.landing    # origem  -> landing
+python -m src.transform.bronze     # landing -> bronze
+python -m src.transform.silver     # bronze  -> silver
+python -m src.transform.gold       # silver  -> gold
 ```
 
 ### Variáveis de ambiente
 
-| Variável | Default | Descrição |
+| Variável | Padrão | Descrição |
 |---|---|---|
 | `IFOOD_ENV` | detectado | `databricks` ou `local` |
 | `IFOOD_CATALOG` | `workspace` / `spark_catalog` | Catálogo do metastore |
 | `IFOOD_LOCAL_ROOT` | `./data` | Raiz de dados em execução local |
 
-## Fonte dos dados
+---
 
-NYC Taxi & Limousine Commission — *TLC Trip Record Data*:
+## Estrutura
+
+```
+├─ analysis/
+│  └─ respostas.md          # Respostas às perguntas do case
+├─ docs/
+│  └─ achados-eda.md        # Análise exploratória e regras de limpeza
+├─ notebooks/               # Orquestradores (Databricks)
+│  ├─ _setup.py             # Configuração compartilhada (%run)
+│  ├─ 01_landing.py         # Origem  -> Volume
+│  ├─ 02_bronze.py          # Landing -> Delta
+│  ├─ 03_eda.py             # Análise exploratória (opcional)
+│  ├─ 04_silver.py          # Bronze  -> Silver
+│  └─ 05_analise.py         # Respostas em SQL e PySpark
+├─ src/
+│  ├─ config.py             # Configuração central (isola local x Databricks)
+│  ├─ ingestion/landing.py  # Download idempotente + manifesto
+│  ├─ transform/
+│  │  ├─ bronze.py          # Tipos canônicos + auditoria
+│  │  ├─ silver.py          # Limpeza, sinalização, quarentena
+│  │  └─ gold.py            # Agregações do case
+│  └─ utils/spark.py        # SparkSession e namespaces
+├─ requirements.txt
+└─ README.md
+```
+
+Os notebooks são salvos como `.py` com o cabeçalho `# Databricks notebook source`:
+renderizam como notebook no workspace, mas produzem *diff* legível no Git — ao
+contrário de `.ipynb`, cujo JSON com *outputs* embutidos é ilegível em revisão.
+
+---
+
+## Sobre os dados
+
+Fonte: **NYC Taxi & Limousine Commission — TLC Trip Record Data**
 <https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page>
+
+Os arquivos são servidos pelo CDN `d37ci6vzurychx.cloudfront.net`, que é a
+origem real utilizada pelo pipeline. As colunas exigidas pelo case —
+`VendorID`, `passenger_count`, `total_amount`, `tpep_pickup_datetime` e
+`tpep_dropoff_datetime` — estão presentes na camada de consumo, junto com as
+demais colunas da origem e com colunas derivadas (`pickup_date`, `pickup_hour`,
+`pickup_day_of_week`, `trip_duration_seconds`).
