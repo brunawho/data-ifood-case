@@ -144,7 +144,7 @@ def write_bronze(df: DataFrame, period: str, spark: SparkSession) -> int:
 
     writer.saveAsTable(table)
     count = df.count()
-    logger.info("[%s] bronze gravada: %d registros", period, f"{count:,}".replace(",", "."))
+    logger.info("[%s] bronze gravada: %s registros", period, f"{count:,}".replace(",", "."))
     return count
 
 
