@@ -9,19 +9,14 @@
 # MAGIC **Etapa 2 de 5.** Tabula os parquets da landing em uma tabela Delta única,
 # MAGIC governada pelo Unity Catalog e consultável por SQL.
 # MAGIC
-# MAGIC **Contrato desta camada:**
-# MAGIC
-# MAGIC - mesma granularidade da origem (1 linha = 1 corrida)
-# MAGIC - **nenhum registro descartado**, inclusive os inválidos
-# MAGIC - nomes de coluna preservados como na origem
-# MAGIC - tipos canonizados, para que os 5 meses formem uma tabela única
-# MAGIC - colunas de auditoria: `_source_file`, `_ingested_at`, `_ref_period`
+# MAGIC Preserva a granularidade e os nomes da origem, sem descartar registro
+# MAGIC algum, e acrescenta as colunas de auditoria `_source_file`,
+# MAGIC `_ingested_at` e `_ref_period`. Os tipos são canonizados para que os
+# MAGIC cinco meses formem uma tabela única.
 # MAGIC
 # MAGIC Filtrar aqui seria erro de arquitetura: a bronze é a cópia fiel e
-# MAGIC consultável da origem. Limpeza é responsabilidade da silver, e as regras
-# MAGIC dela sairão da EDA (notebook 03) — não de suposição.
-# MAGIC
-# MAGIC **Tecnologia:** PySpark (DataFrame API) + Delta Lake.
+# MAGIC consultável da origem. A limpeza é responsabilidade da silver, e as regras
+# MAGIC dela saem da EDA (notebook 03).
 # MAGIC
 # MAGIC **Pré-requisito:** `01_landing` executado.
 

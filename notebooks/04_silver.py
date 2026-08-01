@@ -10,15 +10,15 @@
 # MAGIC | Ação | Critério | Volume |
 # MAGIC |---|---|---|
 # MAGIC | Descartar | *pickup* fora de jan–mai/2023 | 104 |
-# MAGIC | Descartar | duração ≤ 0 | 6.181 |
+# MAGIC | Descartar | duração ≤ 0 | 6.180 |
 # MAGIC | Sinalizar | `total_amount` ≤ 0 (estornos) | 144.146 |
 # MAGIC | Sinalizar | duração acima de 24h | 94 |
 # MAGIC | Sinalizar | `passenger_count` nulo / zero / acima de 6 | 702.258 |
 # MAGIC | Sinalizar | `VendorID` fora do domínio documentado | 3.983 |
 # MAGIC
-# MAGIC **Princípio:** descartar apenas o comprovadamente inválido. O suspeito é
-# MAGIC preservado com sinalização, porque a silver precisa servir perguntas que
-# MAGIC ainda não foram formuladas — e decisões de métrica pertencem à gold.
+# MAGIC Descarta apenas o comprovadamente inválido. O suspeito é preservado com
+# MAGIC sinalização, porque a silver precisa servir perguntas ainda não formuladas
+# MAGIC e decisões de métrica pertencem à gold.
 # MAGIC
 # MAGIC O que é descartado vai para uma **tabela de quarentena** com o motivo. Dado
 # MAGIC descartado silenciosamente é dado perdido.
@@ -38,11 +38,11 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ## Construção
 # MAGIC
-# MAGIC A silver é reconstruída por completo a cada execução — decisão explicada em
-# MAGIC detalhe na *docstring* de `build_silver`. Em resumo: a silver é particionada
-# MAGIC pela data real da corrida e a bronze pelo arquivo de origem, e a EDA provou
-# MAGIC que essas chaves não têm correspondência. Recarregar um mês isolado exigiria
-# MAGIC varrer toda a bronze de qualquer forma.
+# MAGIC A silver é reconstruída por completo a cada execução. A silver é
+# MAGIC particionada pela data real da corrida e a bronze pelo arquivo de origem,
+# MAGIC e a EDA provou que essas chaves não se correspondem: recarregar um mês
+# MAGIC isolado exigiria varrer toda a bronze de qualquer forma. Detalhes na
+# MAGIC *docstring* de `build_silver`.
 
 # COMMAND ----------
 
@@ -66,9 +66,9 @@ print(f"Descarte    : {100 * resultado['descartados'] / total:.4f}%")
 # MAGIC %md
 # MAGIC ### 1. Conservação de registros
 # MAGIC
-# MAGIC A soma de silver e quarentena precisa bater exatamente com a bronze. Se não
-# MAGIC bater, há registro sumindo em algum ponto da transformação — o tipo de erro
-# MAGIC que passa despercebido e corrompe toda análise posterior.
+# MAGIC A soma de silver e quarentena precisa bater exatamente com a bronze. Se
+# MAGIC não bater, há registro sumindo na transformação: o tipo de erro que passa
+# MAGIC despercebido e corrompe toda análise posterior.
 
 # COMMAND ----------
 

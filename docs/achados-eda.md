@@ -15,7 +15,7 @@ de limpeza foi tomada por suposição.
 ### Escopo real dos dados
 
 Os cinco arquivos mensais contêm corridas de **17 meses distintos**, indo de
-janeiro/2001 a setembro/2023. A sujeira ocorre nas duas direções — passado e
+janeiro/2001 a setembro/2023. A sujeira ocorre nas duas direções, passado e
 futuro em relação ao arquivo.
 
 | Métrica | Valor |
@@ -27,12 +27,12 @@ futuro em relação ao arquivo.
 
 Duas categorias distintas foram observadas e **não devem ser confundidas**:
 
-- **Corrupção** — datas de 2001, 2002, 2008 e setembro/2023. São 104 registros.
-- **Fronteira legítima** — corridas iniciadas logo após a virada do mês e
+- **Corrupção**: datas de 2001, 2002, 2008 e setembro/2023. São 104 registros.
+- **Fronteira legítima**: corridas iniciadas logo após a virada do mês e
   transmitidas com o lote anterior (ex.: 2023-02-01 00:56 no arquivo de janeiro).
   Não são erro: pertencem ao mês seguinte.
 
-Contando "fora do mês do arquivo" o total seria 437 registros — número que mistura
+Contando "fora do mês do arquivo" o total seria 437 registros, número que mistura
 as duas categorias. O critério correto é a **janela do escopo**, não o arquivo.
 
 > **Decisão:** filtrar por `tpep_pickup_datetime` dentro de jan–mai/2023, e
@@ -49,7 +49,7 @@ as duas categorias. O critério correto é a **janela do escopo**, não o arquiv
 | Duração mediana | 12,2 min | |
 | Duração máxima | 167,2 h (~7 dias) | |
 
-> **Decisão:** descartar duração ≤ 0 (6.181 registros, 0,038%) — não é corrida.
+> **Decisão:** descartar duração ≤ 0 (6.181 registros, 0,038%), não é corrida.
 > Manter as acima de 24h: são implausíveis, mas não impossíveis (taxímetro
 > esquecido ligado), e não há critério objetivo para descartá-las.
 
@@ -72,7 +72,7 @@ contábeis como lançamentos negativos, mantendo a corrida original na base. Sã
 registros legítimos com semântica própria.
 
 > **Decisão:** manter na silver, excluir da métrica na gold. A silver é camada de
-> consumo genérica — descartar estornos ali destruiria informação real e
+> consumo genérica, descartar estornos ali destruiria informação real e
 > impediria análises contábeis legítimas. Já a média de valor por corrida não
 > deve somar lançamentos de correção.
 
@@ -100,7 +100,7 @@ Média acima da mediana indica assimetria à direita, esperada em dados de tarif
 | Positivos até US$ 1.000 | 28,3048 |
 | Corridas acima de US$ 1.000 | **11 registros** |
 
-A diferença entre "positivos" e "positivos até 1.000" é de **0,0013** — quarta
+A diferença entre "positivos" e "positivos até 1.000" é de **0,0013**, quarta
 casa decimal. Onze corridas extremas em 16,2 milhões não movem a média.
 
 > **Decisão:** **não aplicar corte de outlier.** Um teto arbitrário seria
@@ -165,7 +165,7 @@ zonas e valor como identificador aproximado:
 | Maior repetição | 2 |
 
 > **Decisão:** manter. Dois registros excedentes em 16,2 milhões estão dentro do
-> que se espera por coincidência legítima — dois táxis do mesmo fornecedor
+> que se espera por coincidência legítima, dois táxis do mesmo fornecedor
 > partindo da mesma zona para a mesma zona, no mesmo instante, com a mesma
 > tarifa. Sem chave primária, não há como distinguir duplicata de coincidência,
 > e o volume não justifica a remoção.
@@ -197,7 +197,7 @@ O dicionário de dados da TLC para 2023 documenta apenas os fornecedores 1
 registros sem correspondência na documentação.
 
 > **Decisão:** manter e sinalizar. Valor fora do domínio documentado não implica
-> corrida inválida — as demais colunas desses registros são consistentes. Marcar
+> corrida inválida, as demais colunas desses registros são consistentes. Marcar
 > a inconsistência preserva a informação e a torna visível ao consumidor.
 
 #### Achado adicional: o fornecedor 6 concentra desproporcionalmente os descartes
@@ -213,11 +213,11 @@ descarte** (6.284 registros), embora esse fornecedor responda por apenas 0,025%
 da base.
 
 Em taxa: **19,4%** dos registros do fornecedor 6 foram descartados por invalidez,
-contra **0,039%** da base geral — cerca de 500 vezes mais.
+contra **0,039%** da base geral, cerca de 500 vezes mais.
 
 O valor não documentado, portanto, não é apenas uma lacuna de dicionário: é
 indicador de uma fonte com qualidade de dados sensivelmente inferior. Isso
-reforça a decisão de sinalizar em vez de ignorar — consumidores que exijam alta
+reforça a decisão de sinalizar em vez de ignorar, consumidores que exijam alta
 confiabilidade podem excluir esses registros de forma consciente.
 
 ---
@@ -272,7 +272,7 @@ pondera pelo volume real.
 **Volume total descartado: 6.284 registros (0,039%).**
 
 *Nota sobre a contagem:* somando as categorias isoladamente chega-se a 6.285.
-A diferença é um registro que apresenta **os dois problemas** — está fora do
+A diferença é um registro que apresenta **os dois problemas**, está fora do
 escopo temporal e tem duração não-positiva. Como os motivos de descarte são
 mutuamente exclusivos e avaliados em ordem, ele é classificado apenas como
 `fora_do_escopo_temporal`. Verificado na execução: quarentena registrou 104
@@ -280,10 +280,10 @@ fora de escopo e 6.180 de duração não-positiva.
 
 ### Princípio adotado
 
-A silver descarta **apenas o que é comprovadamente inválido** — corrida fora do
+A silver descarta **apenas o que é comprovadamente inválido**, corrida fora do
 escopo temporal e corrida com duração não-positiva. Todo o resto é preservado
 com colunas de sinalização (`flag_*`), deixando a decisão para o consumidor.
 
-Decisões de métrica — excluir estornos de uma média, por exemplo — pertencem à
+Decisões de métrica, excluir estornos de uma média, por exemplo, pertencem à
 gold. Assim a camada de consumo continua servindo perguntas que ainda não foram
 formuladas, em vez de responder apenas às duas do case.

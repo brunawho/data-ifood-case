@@ -1,22 +1,14 @@
 """
-Etapa 2 do pipeline: landing -> bronze.
+Etapa 2: landing -> bronze.
 
-Contrato desta camada:
-  * mesma granularidade da origem (1 linha = 1 corrida), nenhum registro
-    descartado - inclusive os inválidos, que só serão tratados na silver;
-  * nomes de coluna preservados como na origem;
-  * tipos canonizados, para que os 5 meses formem uma tabela única;
-  * colunas de auditoria (`_source_file`, `_ingested_at`, `_ref_period`).
+Preserva a granularidade e os nomes da origem, sem descartar registro algum, e
+acrescenta colunas de auditoria. Os tipos são canonizados para que os cinco
+meses formem uma tabela única.
 
-Por que canonizar tipo aqui? Os parquets mensais da TLC não têm schema
-estável: a mesma coluna aparece como int32 num mês e int64 noutro, e valores
-monetários oscilam entre decimal e double. Se lêssemos os 5 arquivos de uma vez
-o Spark falharia na união, e `mergeSchema` resolveria de forma imprevisível.
-
-Estratégia adotada: ler **um arquivo por vez** (schema inferido do footer
-daquele arquivo, sempre consistente consigo mesmo) e então fazer CAST explícito
-para o tipo canônico. O cast acontece no plano do Spark, não no leitor de
-Parquet, o que evita SchemaColumnConvertNotSupportedException.
+Os parquets mensais da TLC não têm schema estável (a mesma coluna aparece como
+int32 num mês e int64 noutro). Por isso a leitura é feita um arquivo por vez,
+com CAST posterior: assim a conversão ocorre no plano do Spark e não no leitor
+de Parquet, evitando SchemaColumnConvertNotSupportedException.
 
 Uso:
     python -m src.transform.bronze
@@ -39,17 +31,12 @@ logger = logging.getLogger(__name__)
 # Colunas ausentes num mês específico entram como NULL, sem quebrar a execução.
 CANONICAL_TYPES: dict[str, str] = {
     "VendorID": "int",
-    # A origem entrega TIMESTAMP_NTZ ("no time zone"), e está correta: a TLC
-    # registra hora local de Nova York, sem offset. Converter para TIMESTAMP
-    # faria o Spark interpretar esse horário de parede no fuso da *sessão* e
-    # guardar um instante absoluto - o que só devolve a hora original se a
-    # sessão de leitura usar o mesmo fuso da sessão de escrita. Como a pergunta
-    # 2 do case é justamente sobre hora do dia, essa dependência implícita de
-    # configuração seria um erro esperando para acontecer. Preservamos NTZ.
+    # NTZ preservado: a TLC registra hora local de NY, sem offset. Converter
+    # para TIMESTAMP faria o Spark interpretar o horário de parede no fuso da
+    # sessão, e a pergunta 2 do case depende justamente da hora do dia.
     "tpep_pickup_datetime": "timestamp_ntz",
     "tpep_dropoff_datetime": "timestamp_ntz",
-    # Nullable na origem (aparece como double justamente por isso). Mantemos
-    # int nullable: o tratamento de nulo é decisão da silver, não da bronze.
+    # Nullable na origem; o tratamento do nulo é decisão da silver.
     "passenger_count": "int",
     "trip_distance": "double",
     "RatecodeID": "int",
@@ -74,9 +61,8 @@ PARTITION_COLUMN = "_ref_period"
 def _resolve(available: list[str], wanted: str) -> str | None:
     """Casa nome de coluna ignorando caixa.
 
-    A TLC já trocou a caixa de colunas entre versões (`airport_fee` virou
-    `Airport_fee` em arquivos de 2024). Resolver por caixa-insensitiva torna a
-    ingestão resistente a isso sem precisar de mapa por competência.
+    A TLC já trocou a caixa entre versões (`airport_fee` virou `Airport_fee` em
+    2024), então a resolução caixa-insensitiva evita um mapa por competência.
     """
     lookup = {name.lower(): name for name in available}
     return lookup.get(wanted.lower())
@@ -106,16 +92,14 @@ def read_landing(spark: SparkSession, period: str) -> DataFrame:
         _resolve(available, c) for c in CANONICAL_TYPES
     } - {None}
     if unexpected:
-        # Não falha: a origem ganhar coluna nova não deve derrubar o pipeline.
-        # Mas registra, porque é sinal de que o schema mudou e vale revisar.
+        # Coluna nova na origem não derruba o pipeline, mas fica registrada.
         logger.warning("[%s] colunas novas na origem, ignoradas: %s",
                        period, ", ".join(sorted(unexpected)))
 
     year, month = period.split("-")
     return raw.select(*projection).select(
         "*",
-        # `_metadata.file_path` em vez de input_file_name(): esta última não é
-        # suportada em compute serverless / Photon.
+        # input_file_name() não é suportada em compute serverless / Photon.
         F.col("_metadata.file_path").alias("_source_file"),
         F.current_timestamp().alias("_ingested_at"),
         F.lit(period).alias(PARTITION_COLUMN),
@@ -125,12 +109,10 @@ def read_landing(spark: SparkSession, period: str) -> DataFrame:
 
 
 def write_bronze(df: DataFrame, period: str, spark: SparkSession) -> int:
-    """
-    Escreve um período na bronze de forma idempotente.
+    """Escreve um período na bronze de forma idempotente.
 
-    `replaceWhere` substitui apenas a partição do período, deixando os outros
-    meses intactos. É isso que permite reprocessar um mês isolado sem recarregar
-    os cinco - e é a razão de a tabela ser particionada por `_ref_period`.
+    `replaceWhere` substitui apenas a partição do período, o que permite
+    reprocessar um mês isolado sem recarregar os cinco.
     """
     table = config.TABLE_BRONZE
     writer = df.write.format("delta")

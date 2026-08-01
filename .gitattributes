@@ -1,0 +1,7 @@
+# Normaliza quebras de linha para LF no repositório, independente do sistema
+# operacional de quem edita. Sem isto, alternar entre edição no Windows e no
+# workspace do Databricks produz diffs de arquivo inteiro a cada commit.
+* text=auto eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.parquet binary

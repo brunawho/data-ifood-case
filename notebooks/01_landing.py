@@ -5,18 +5,15 @@
 # MAGIC **Etapa 1 de 5.** Baixa os parquets originais de *yellow taxi* da NYC TLC
 # MAGIC (jan–mai/2023) para um Volume do Unity Catalog.
 # MAGIC
-# MAGIC **Contrato desta camada:** o arquivo é copiado byte a byte, sem
-# MAGIC interpretação. Nenhum parse, nenhum cast, nenhum filtro. A landing existe
-# MAGIC para permitir reprocessar tudo do zero sem depender da origem estar
-# MAGIC disponível — e para que qualquer decisão de limpeza feita adiante seja
-# MAGIC auditável contra o arquivo original.
+# MAGIC O arquivo é copiado byte a byte, sem parse, cast ou filtro. Isso permite
+# MAGIC reprocessar tudo sem depender da origem estar no ar, e torna auditável
+# MAGIC contra o original qualquer decisão de limpeza feita adiante.
 # MAGIC
-# MAGIC **Tecnologia:** Python puro (`requests`). Spark não entra aqui — é engine
-# MAGIC de processamento distribuído, não cliente HTTP. O download aconteceria no
-# MAGIC driver de qualquer forma, e usar Spark custaria o controle sobre retry,
-# MAGIC checksum e escrita atômica.
+# MAGIC Feito em Python puro: Spark é engine de processamento distribuído, não
+# MAGIC cliente HTTP. O download aconteceria no driver de qualquer forma, e usá-lo
+# MAGIC custaria o controle sobre retry, checksum e escrita atômica.
 # MAGIC
-# MAGIC **Idempotente:** reexecutar não baixa de novo o que já está íntegro.
+# MAGIC Idempotente: reexecutar não baixa de novo o que já está íntegro.
 
 # COMMAND ----------
 
@@ -31,12 +28,10 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ## Download
 # MAGIC
-# MAGIC São ~450 MiB por mês, ~2,2 GiB no total.
+# MAGIC Cerca de 45 MiB por mês, ~230 MiB no total.
 # MAGIC
-# MAGIC Na primeira execução, rode **um mês só** (deixe a lista abaixo com
-# MAGIC `("2023-01",)`). O objetivo não é o download em si, é validar que a
-# MAGIC escrita no Volume funciona antes de investir a quota do dia. Depois troque
-# MAGIC por `config.PERIODS` para os cinco — os já baixados são pulados.
+# MAGIC Para processar apenas parte do período, passe uma tupla explícita:
+# MAGIC `ingest(("2023-01",))`.
 
 # COMMAND ----------
 

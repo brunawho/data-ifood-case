@@ -18,10 +18,10 @@ verificação automática de que as duas implementações concordam.
 
 "Média de valor total recebido em um mês" pode significar:
 
-- **(a)** o valor médio de uma corrida, agrupado por mês — ordem de grandeza:
-  dezenas de dólares;
-- **(b)** o valor médio arrecadado pela frota inteira em um mês — ordem de
-  grandeza: dezenas de milhões de dólares.
+- **(a)** o valor médio de uma corrida, agrupado por mês (ordem de grandeza:
+  dezenas de dólares);
+- **(b)** o valor médio arrecadado pela frota inteira em um mês (ordem de
+  grandeza: dezenas de milhões de dólares).
 
 As duas são respondidas abaixo. Escolher uma silenciosamente esconderia uma
 decisão que altera o resultado por um fator de milhões.
@@ -48,7 +48,7 @@ estornos** é a adotada como resposta.
 
 ### Resposta
 
-**Leitura (a) — ticket médio por corrida**
+**Leitura (a), ticket médio por corrida**
 
 | Cálculo | Valor |
 |---|---|
@@ -58,10 +58,10 @@ estornos** é a adotada como resposta.
 A distinção não é preciosismo: a média simples atribui peso igual a cada mês,
 ignorando que maio teve 20,6% mais corridas que fevereiro. A ponderada divide o
 faturamento total pelo número total de corridas. As duas estão corretas e
-respondem a perguntas diferentes — a proximidade entre elas (4 centavos) indica
+respondem a perguntas diferentes. A proximidade entre elas (4 centavos) indica
 que as competências são homogêneas entre si.
 
-**Leitura (b) — faturamento mensal da frota**
+**Leitura (b), faturamento mensal da frota**
 
 | Métrica | Valor |
 |---|---|
@@ -75,9 +75,9 @@ que as competências são homogêneas entre si.
 Maio faturou **29,9% mais que fevereiro**. O crescimento vem de dois efeitos
 somados, e vale distingui-los:
 
-- **Volume** — 3,51 milhões de corridas em maio contra 2,91 milhões em fevereiro
+- **Volume**, 3,51 milhões de corridas em maio contra 2,91 milhões em fevereiro
   (+20,6%). Fevereiro tem 28 dias, e o inverno de Nova York reduz a circulação.
-- **Ticket** — US$ 29,46 contra US$ 27,34 (+7,8%). O valor médio da corrida
+- **Ticket**, US$ 29,46 contra US$ 27,34 (+7,8%). O valor médio da corrida
   também subiu, o que não se explica por sazonalidade de calendário.
 
 O ticket médio cresce de forma monotônica ao longo dos cinco meses, sugerindo
@@ -93,12 +93,12 @@ mais longa que a do escopo deste case.
 
 ### Tratamento de valores ausentes
 
-427.771 corridas na base não têm `passenger_count` registrado — o taxímetro não
+427.771 corridas na base não têm `passenger_count` registrado: o taxímetro não
 capturou a informação. **Nulo não é zero:** significa ausência de registro, não
 corrida sem passageiro. Substituir por zero puxaria a média para baixo
 artificialmente.
 
-O comportamento nativo do `AVG` — ignorar nulos — é o correto e é o adotado. As
+O comportamento nativo do `AVG`, ignorar nulos, é o correto e é o adotado. As
 alternativas são exibidas na tabela para tornar a decisão auditável.
 
 ### Resultado — maio/2023
@@ -130,7 +130,7 @@ alternativas são exibidas na tabela para tornar a decisão auditável.
 | 22h | 188.972 | **1,4109** | 1,3692 | 1,4272 | 5.590 |
 | 23h | 148.127 | **1,4066** | 1,3595 | 1,4221 | 4.954 |
 
-*Total: 3.512.476 corridas — todas as corridas de maio na camada silver.*
+*Total: 3.512.476 corridas, todas as corridas de maio na camada silver.*
 
 ### O que os números mostram
 
@@ -139,11 +139,11 @@ os extremos.
 
 O padrão tem três fases bem definidas:
 
-- **Madrugada (0h–3h)** — a maior ocupação do dia. Compatível com vida noturna:
+- **Madrugada (0h–3h)**: a maior ocupação do dia. Compatível com vida noturna,
   grupos retornando juntos de bares, restaurantes e eventos.
-- **Vale (5h–8h)** — a menor ocupação. Compatível com deslocamento individual
+- **Vale (5h–8h)**: a menor ocupação. Compatível com deslocamento individual
   para o trabalho.
-- **Recuperação progressiva (9h–23h)** — a média sobe de forma contínua ao longo
+- **Recuperação progressiva (9h–23h)**: a média sobe de forma contínua ao longo
   do dia, com platô à tarde e retomada da alta à noite, quando volta o uso
   social.
 

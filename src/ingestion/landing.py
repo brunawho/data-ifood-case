@@ -1,10 +1,9 @@
 """
-Etapa 1 do pipeline: origem (TLC) -> landing zone.
+Etapa 1: origem (TLC) -> landing zone.
 
-Princípio desta camada: o arquivo é copiado **bit a bit, sem interpretação**.
-Nenhum parse, nenhum cast, nenhum filtro. A landing existe para permitir
-reprocessar tudo do zero sem depender da disponibilidade da origem - e para
-que qualquer decisão de limpeza feita adiante seja auditável contra o original.
+O arquivo é copiado bit a bit, sem parse, cast ou filtro. Isso permite
+reprocessar tudo sem depender da origem estar no ar, e torna auditável contra o
+original qualquer decisão de limpeza feita adiante.
 
 Uso:
     python -m src.ingestion.landing                    # todos os períodos
@@ -34,8 +33,6 @@ BACKOFF_BASE_SECONDS = 2
 REQUEST_TIMEOUT = (10, 120)  # (connect, read)
 
 
-# --------------------------------------------------------------- utilidades
-
 def _remote_size(url: str) -> int | None:
     """Tamanho anunciado pela origem, via HEAD. None se a origem não informar."""
     try:
@@ -64,12 +61,11 @@ def _sha256(path: str) -> str:
 
 
 def _download(url: str, destination: str) -> None:
-    """
-    Download em streaming, com retry e backoff exponencial.
+    """Download em streaming, com retry e backoff exponencial.
 
-    Escrevo em arquivo temporário e só renomeio no fim: se a conexão cair no
-    meio, a landing não fica com um parquet truncado que passaria pela
-    checagem de idempotência na próxima execução.
+    Escreve em arquivo temporário e só renomeia no fim: se a conexão cair no
+    meio, a landing não fica com um parquet truncado que passaria pela checagem
+    de idempotência na execução seguinte.
     """
     temporary = f"{destination}.part"
 
@@ -97,12 +93,10 @@ def _download(url: str, destination: str) -> None:
 
 
 def _append_manifest(record: dict) -> None:
-    """
-    Acrescenta um registro ao manifest.
+    """Acrescenta um registro ao manifest.
 
-    Leio e reescrevo o arquivo inteiro em vez de abrir em modo append porque
-    Volumes do Unity Catalog não suportam escrita incremental de forma
-    confiável. Com 5 registros o custo é irrelevante.
+    Reescreve o arquivo inteiro em vez de abrir em modo append: Volumes do
+    Unity Catalog não suportam escrita incremental de forma confiável.
     """
     path = config.manifest_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -119,10 +113,8 @@ def _append_manifest(record: dict) -> None:
         handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-# ------------------------------------------------------------------ ingestão
-
 def ingest_period(period: str, force: bool = False) -> dict:
-    """Garante que o parquet de `period` esteja na landing. Retorna o registro de manifest."""
+    """Garante o parquet de `period` na landing. Retorna o registro de manifest."""
     url = config.source_url(period)
     destination = config.landing_file(period)
     os.makedirs(config.landing_dir(period), exist_ok=True)
@@ -130,15 +122,11 @@ def ingest_period(period: str, force: bool = False) -> dict:
     remote_size = _remote_size(url)
     local_size = _local_size(destination)
 
-    # Idempotência: se o arquivo já está lá com o tamanho anunciado pela
-    # origem, não há o que fazer. Divergência de tamanho é sinal de que a TLC
-    # republicou o mês (acontece) ou de download incompleto - nos dois casos,
-    # baixar de novo é o comportamento correto.
+    # Divergência de tamanho indica republicação do mês pela TLC ou download
+    # incompleto; nos dois casos baixar de novo é o correto. Se o HEAD falhou e
+    # não há tamanho de referência, confia-se no arquivo local (`--force`
+    # existe para o caso duvidoso).
     if not force and local_size is not None:
-        # Se a origem não informou o tamanho (HEAD bloqueado, rede instável),
-        # confiamos no arquivo local: re-baixar 400 MiB por causa de um HEAD
-        # que falhou é pior do que assumir que o arquivo íntegro continua
-        # íntegro. `--force` existe justamente para o caso duvidoso.
         if remote_size is None or local_size == remote_size:
             logger.info("[%s] já presente e íntegro (%d bytes); pulando", period, local_size)
             return {
@@ -178,12 +166,10 @@ def ingest_period(period: str, force: bool = False) -> dict:
 
 
 def ingest(periods: tuple[str, ...] = config.PERIODS, force: bool = False) -> list[dict]:
-    """
-    Ingere todos os períodos.
+    """Ingere todos os períodos.
 
-    Falha de um período não aborta os outros: o resumo no fim mostra o que
-    entrou e o que não. Reexecutar o comando resolve só o que faltou, porque
-    a ingestão é idempotente.
+    Falha em um período não aborta os demais. Como a ingestão é idempotente,
+    reexecutar resolve apenas o que faltou.
     """
     results: list[dict] = []
     for period in periods:

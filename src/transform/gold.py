@@ -1,14 +1,13 @@
 """
-Etapa 5 do pipeline: silver -> gold.
+Etapa 5: silver -> gold.
 
-A gold materializa as respostas às duas perguntas do case. É aqui - e não na
-silver - que ficam as decisões de métrica: excluir estornos de uma média é uma
-escolha analítica, não uma correção de qualidade. A silver preserva o dado; a
-gold interpreta.
+Materializa as respostas às duas perguntas do case. As decisões de métrica
+ficam aqui, e não na silver: excluir estornos de uma média é escolha analítica,
+não correção de qualidade.
 
-Todas as agregações são construídas sobre `pickup_year_month`, derivado da data
-real da corrida, nunca do arquivo de origem. A análise exploratória mostrou que
-cada competência recebe corridas de dois ou três arquivos distintos.
+As agregações usam `pickup_year_month`, derivado da data real da corrida. Cada
+competência recebe corridas de dois ou três arquivos distintos, então agrupar
+pelo arquivo de origem daria resposta errada.
 
 Uso:
     python -m src.transform.gold
@@ -31,18 +30,11 @@ TABLE_HOURLY = config.table(config.SCHEMA_GOLD, "yellow_trips_hourly_passengers"
 
 
 def monthly_revenue(spark: SparkSession) -> DataFrame:
-    """Pergunta 1 — agregação mensal de `total_amount`.
+    """Pergunta 1 - agregação mensal de `total_amount`.
 
-    O enunciado ("média de valor total recebido em um mês considerando todos os
-    yellow táxis da frota") admite duas leituras, com respostas separadas por
-    seis ordens de grandeza:
-
-      (a) ticket médio por corrida, agrupado por mês;
-      (b) faturamento total da frota em cada mês.
-
-    A tabela entrega as duas, e cada uma em duas versões: incluindo e excluindo
-    os lançamentos não-positivos (estornos e ajustes contábeis). Escolher
-    silenciosamente esconderia uma decisão que altera o resultado.
+    O enunciado admite duas leituras separadas por seis ordens de grandeza:
+    (a) ticket médio por corrida e (b) faturamento total da frota no mês. A
+    tabela entrega as duas, cada uma com e sem os lançamentos não-positivos.
     """
     silver = spark.table(config.TABLE_SILVER)
     positivo = ~F.col("flag_valor_nao_positivo")
@@ -52,17 +44,16 @@ def monthly_revenue(spark: SparkSession) -> DataFrame:
         .agg(
             F.count("*").alias("corridas"),
             F.sum(F.when(positivo, 1).otherwise(0)).alias("corridas_faturadas"),
-            # --- Leitura (a): ticket médio por corrida ---------------------- #
+            # Leitura (a): ticket médio por corrida.
             F.round(F.avg("total_amount"), 2).alias("ticket_medio_bruto"),
             F.round(F.avg(F.when(positivo, F.col("total_amount"))), 2).alias(
                 "ticket_medio_sem_estornos"
             ),
-            # --- Leitura (b): faturamento da frota no mês ------------------- #
+            # Leitura (b): faturamento da frota no mês.
             F.round(F.sum("total_amount"), 2).alias("faturamento_bruto"),
             F.round(F.sum(F.when(positivo, F.col("total_amount"))), 2).alias(
                 "faturamento_sem_estornos"
             ),
-            # --- Contexto -------------------------------------------------- #
             F.round(F.percentile_approx("total_amount", 0.5), 2).alias(
                 "mediana_total_amount"
             ),
@@ -75,13 +66,11 @@ def monthly_revenue(spark: SparkSession) -> DataFrame:
 
 
 def hourly_passengers(spark: SparkSession, period: str = "2023-05") -> DataFrame:
-    """Pergunta 2 — média de `passenger_count` por hora do dia.
+    """Pergunta 2 - média de `passenger_count` por hora do dia.
 
-    `AVG` ignora nulos nativamente, e esse é o comportamento correto: nulo
-    significa que o taxímetro não registrou o passageiro, não que a corrida
-    teve zero passageiros. Tratar como zero introduziria viés para baixo.
-
-    As colunas alternativas tornam a decisão auditável em vez de implícita.
+    `AVG` ignora nulos nativamente, e é o comportamento correto: nulo significa
+    que o taxímetro não registrou, não que a corrida teve zero passageiros. As
+    colunas alternativas tornam a decisão auditável.
     """
     silver = spark.table(config.TABLE_SILVER)
 
@@ -90,9 +79,7 @@ def hourly_passengers(spark: SparkSession, period: str = "2023-05") -> DataFrame
         .groupBy("pickup_hour")
         .agg(
             F.count("*").alias("corridas"),
-            # Resposta adotada: AVG ignorando nulos.
             F.round(F.avg("passenger_count"), 4).alias("media_passageiros"),
-            # Alternativas, para tornar a decisão explícita.
             F.round(F.avg(F.coalesce("passenger_count", F.lit(0))), 4).alias(
                 "media_nulo_como_zero"
             ),

@@ -1,22 +1,15 @@
 """
-Etapa 4 do pipeline: bronze -> silver.
+Etapa 4: bronze -> silver, a camada de consumo.
 
-Contrato desta camada:
-  * granularidade preservada (1 linha = 1 corrida);
-  * descarta **apenas o que é comprovadamente inválido** - corrida fora do
-    escopo temporal e corrida com duração não-positiva (6.285 registros,
-    0,039% da base, conforme `docs/achados-eda.md`);
-  * o que é suspeito mas não comprovadamente inválido é preservado e
-    **sinalizado** em colunas `flag_*`, deixando a decisão ao consumidor;
-  * o descartado vai para uma tabela de quarentena, com o motivo - dado
-    descartado silenciosamente é dado perdido;
-  * colunas derivadas prontas para consumo (data, competência, hora, duração).
+Descarta apenas o comprovadamente inválido - corrida fora do escopo temporal e
+corrida com duração não-positiva, 6.284 registros ou 0,039% da base. O que é
+suspeito mas não inválido é preservado e sinalizado em colunas `flag_*`, e o
+descartado vai para uma tabela de quarentena com o motivo.
 
-Por que sinalizar em vez de filtrar? A silver é camada de consumo genérica, que
-precisa servir perguntas ainda não formuladas. Remover os 141.407 estornos aqui
-significaria decidir, em nome de todos os futuros consumidores da tabela, que
-ninguém jamais vai querer analisar estorno. Decisões de métrica pertencem à
-gold.
+Sinalizar em vez de filtrar porque a silver precisa servir perguntas ainda não
+formuladas: remover os estornos aqui decidiria, por todos os futuros
+consumidores, que ninguém vai querer analisá-los. Decisões de métrica pertencem
+à gold. Os volumes de cada anomalia estão em `docs/achados-eda.md`.
 
 Uso:
     python -m src.transform.silver
@@ -39,12 +32,11 @@ PARTITION_COLUMN = "pickup_year_month"
 # Fornecedores documentados no dicionário de dados da TLC para 2023.
 KNOWN_VENDORS = (1, 2)
 
-# Capacidade máxima plausível: 4 passageiros em sedan, 5 em minivan autorizada,
-# mais criança de colo. Acima de 6 não corresponde a nenhuma configuração legal.
+# 4 passageiros em sedan, 5 em minivan autorizada, mais criança de colo. Acima
+# de 6 não corresponde a nenhuma configuração legal em NY.
 MAX_PLAUSIBLE_PASSENGERS = 6
 
-# Corrida acima de 24h é implausível (taxímetro esquecido ligado), mas não
-# impossível - por isso é sinalizada, não descartada.
+# Implausível (taxímetro esquecido ligado), mas não impossível: sinaliza.
 EXTREME_DURATION_SECONDS = 24 * 60 * 60
 
 
@@ -65,9 +57,8 @@ def _scope_end() -> str:
 def classify(df: DataFrame) -> DataFrame:
     """Adiciona colunas derivadas, flags de qualidade e o motivo de descarte.
 
-    Nada é filtrado aqui: a função apenas anota. A separação entre válido e
-    inválido acontece depois, o que permite que o mesmo cálculo alimente tanto
-    a silver quanto a quarentena, sem risco de divergirem.
+    Apenas anota, sem filtrar. A separação acontece depois, para que o mesmo
+    cálculo alimente silver e quarentena sem risco de divergirem.
     """
     competencia = F.date_format("tpep_pickup_datetime", "yyyy-MM")
     duracao = _duration_seconds()
@@ -81,7 +72,7 @@ def classify(df: DataFrame) -> DataFrame:
         .withColumn("pickup_date", F.to_date("tpep_pickup_datetime"))
         .withColumn("pickup_hour", F.hour("tpep_pickup_datetime"))
         .withColumn("pickup_day_of_week", F.dayofweek("tpep_pickup_datetime"))
-        # --- Sinalizações: suspeito, porém preservado -------------------- #
+        # Sinalizações: suspeito, porém preservado.
         .withColumn("flag_valor_nao_positivo", F.col("total_amount") <= 0)
         .withColumn(
             "flag_duracao_extrema", F.col("trip_duration_seconds") > EXTREME_DURATION_SECONDS
@@ -95,7 +86,7 @@ def classify(df: DataFrame) -> DataFrame:
         .withColumn(
             "flag_fornecedor_desconhecido", ~F.col("VendorID").isin(*KNOWN_VENDORS)
         )
-        # --- Motivo de descarte: NULL significa registro válido ----------- #
+        # Motivo do descarte; NULL significa registro válido.
         .withColumn(
             "motivo_descarte",
             F.when(fora_do_escopo, F.lit("fora_do_escopo_temporal"))
@@ -107,29 +98,21 @@ def classify(df: DataFrame) -> DataFrame:
 def build_silver(spark: SparkSession) -> dict[str, int]:
     """Reconstrói silver e quarentena a partir da bronze completa.
 
-    **Por que reconstrução total e não carga incremental por partição?**
+    A reconstrução total é intencional. A silver é particionada pela data real
+    da corrida e a bronze pelo arquivo de origem, e a EDA mostrou que essas
+    chaves não se correspondem: uma partição da bronze alimenta várias da
+    silver. Recarregar um mês isolado com garantia de completude exigiria
+    varrer toda a bronze de qualquer forma, então o "incremental" seria uma
+    reconstrução total com passos extras e risco de inconsistência.
 
-    A silver é particionada por `pickup_year_month` (data real da corrida),
-    enquanto a bronze é particionada por `_ref_period` (arquivo de origem). A
-    EDA mostrou que essas chaves não têm correspondência: o arquivo de maio
-    contém corrida de setembro, e o de janeiro contém corrida de fevereiro.
-
-    Uma partição da bronze alimenta várias partições da silver, e uma partição
-    da silver pode receber dados de qualquer arquivo. Não há como recarregar um
-    mês da silver com garantia de completude sem varrer toda a bronze - o que
-    tornaria o "incremental" apenas uma reconstrução total com passos extras e
-    risco de inconsistência.
-
-    Com 16 milhões de registros a reconstrução leva segundos, então a escolha
-    simples também é a correta. Em volume maior, a solução seria um MERGE por
-    chave de negócio - que esta base não possui, por não ter chave primária.
+    Em volume maior a alternativa seria MERGE por chave de negócio, que esta
+    base não possui.
     """
     ensure_namespaces(spark)
 
-    # Sem .cache(): compute serverless não suporta persistência de DataFrame.
-    # O plano é reavaliado nas duas escritas, o que é aceitável - e as contagens
-    # abaixo saem das tabelas Delta já gravadas, onde COUNT(*) é resolvido pelas
-    # estatísticas do log de transação, sem varrer os dados.
+    # Sem .cache(): serverless não suporta persistência de DataFrame. As
+    # contagens saem das tabelas gravadas, onde COUNT(*) é resolvido pelas
+    # estatísticas do log de transação.
     classificado = classify(spark.table(config.TABLE_BRONZE))
 
     validos = classificado.filter(F.col("motivo_descarte").isNull()).drop(

@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 05 — Análise: respostas ao case
+# MAGIC # 05 - Análise: respostas ao case
 # MAGIC
 # MAGIC **Etapa 5 de 5.** As duas perguntas do enunciado, respondidas sobre a
 # MAGIC camada silver.
@@ -29,8 +29,8 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ## Materialização da gold
 # MAGIC
-# MAGIC As agregações são persistidas como tabelas Delta. É aqui — e não na silver
-# MAGIC — que ficam as decisões de métrica: excluir estornos de uma média é escolha
+# MAGIC As agregações são persistidas como tabelas Delta. As decisões de métrica
+# MAGIC ficam aqui, e não na silver: excluir estornos de uma média é escolha
 # MAGIC analítica, não correção de qualidade.
 
 # COMMAND ----------
@@ -45,7 +45,7 @@ print(f"gold.yellow_trips_hourly_passengers  : {contagens['hourly']} linhas")
 
 # MAGIC %md
 # MAGIC ---
-# MAGIC # Pergunta 1 — média de `total_amount` por mês
+# MAGIC # Pergunta 1: média de `total_amount` por mês
 # MAGIC
 # MAGIC ## A ambiguidade do enunciado
 # MAGIC
@@ -53,23 +53,21 @@ print(f"gold.yellow_trips_hourly_passengers  : {contagens['hourly']} linhas")
 # MAGIC da frota" admite duas leituras, e a diferença entre elas é de seis ordens de
 # MAGIC grandeza:
 # MAGIC
-# MAGIC **(a) Ticket médio por corrida, por mês** — de tudo que a frota recebeu,
-# MAGIC quanto vale uma corrida em média. Ordem de grandeza: dezenas de dólares.
+# MAGIC **(a) Ticket médio por corrida, por mês.** Dezenas de dólares.
 # MAGIC
-# MAGIC **(b) Faturamento médio mensal da frota** — quanto a frota inteira arrecada
-# MAGIC em um mês típico. Ordem de grandeza: dezenas de milhões de dólares.
+# MAGIC **(b) Faturamento médio mensal da frota.** Dezenas de milhões de dólares.
 # MAGIC
 # MAGIC Ambas são respondidas abaixo. Escolher uma silenciosamente esconderia uma
 # MAGIC decisão que altera o resultado por um fator de milhões.
 # MAGIC
 # MAGIC ## A decisão sobre estornos
 # MAGIC
-# MAGIC A base contém 143.792 lançamentos com `total_amount` ≤ 0 — estornos e
+# MAGIC A base contém 143.792 lançamentos com `total_amount` ≤ 0: estornos e
 # MAGIC ajustes contábeis registrados pela TLC como linhas negativas, e não como
-# MAGIC remoção da corrida original. São registros legítimos, preservados na silver.
+# MAGIC remoção da corrida original. São legítimos e ficam preservados na silver.
 # MAGIC
-# MAGIC Para a métrica de valor recebido por corrida, incluí-los distorce: um
-# MAGIC estorno não é uma corrida. Ambas as versões são apresentadas.
+# MAGIC Para a métrica de valor por corrida, incluí-los distorce: um estorno não é
+# MAGIC uma corrida. As duas versões são apresentadas.
 
 # COMMAND ----------
 
@@ -131,8 +129,8 @@ display(resposta_1)
 # MAGIC
 # MAGIC Apresentar duas implementações só tem valor se elas produzirem o mesmo
 # MAGIC resultado. A verificação abaixo compara a agregação materializada na gold
-# MAGIC com o cálculo feito diretamente sobre a silver, nos dois sentidos —
-# MAGIC `exceptAll` em uma direção só não detectaria linhas sobrando na outra.
+# MAGIC com o cálculo feito sobre a silver nos dois sentidos: `exceptAll` em uma
+# MAGIC direção só não detectaria linhas sobrando na outra.
 
 # COMMAND ----------
 
@@ -161,15 +159,15 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 # MAGIC Note a distinção entre **média simples** e **média ponderada** na leitura
 # MAGIC (a): a média das cinco médias mensais atribui peso igual a cada mês,
 # MAGIC ignorando que maio teve cerca de 20% mais corridas que fevereiro. A média
-# MAGIC sobre todas as corridas pondera pelo volume real. As duas estão corretas —
-# MAGIC respondem a perguntas diferentes.
+# MAGIC sobre todas as corridas pondera pelo volume real. As duas estão corretas
+# MAGIC e respondem a perguntas diferentes.
 # MAGIC
 # MAGIC A leitura (b) não admite versão ponderada: a média de faturamento entre
 # MAGIC cinco meses é uma média simples por definição, já que a unidade de
 # MAGIC agregação é o próprio mês.
 # MAGIC
 # MAGIC As duas implementações já foram demonstradas acima. As consolidações a
-# MAGIC seguir usam SQL por concisão — o resultado independe da API escolhida.
+# MAGIC seguir usam SQL por concisão; o resultado independe da API escolhida.
 
 # COMMAND ----------
 
@@ -195,16 +193,15 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 
 # MAGIC %md
 # MAGIC ---
-# MAGIC # Pergunta 2 — média de passageiros por hora (maio/2023)
+# MAGIC # Pergunta 2: média de passageiros por hora (maio/2023)
 # MAGIC
 # MAGIC ## A decisão sobre `passenger_count` nulo
 # MAGIC
-# MAGIC 427.771 corridas na silver não têm `passenger_count` registrado — o
-# MAGIC taxímetro não capturou a informação. **Nulo não é zero:** significa ausência
-# MAGIC de registro, não corrida sem passageiro.
+# MAGIC 427.771 corridas na silver não têm `passenger_count` registrado: o
+# MAGIC taxímetro não capturou a informação. **Nulo não é zero**, e substituir por
+# MAGIC zero puxaria a média para baixo artificialmente.
 # MAGIC
-# MAGIC O comportamento nativo do `AVG` é ignorar nulos, e é o correto aqui.
-# MAGIC Substituir por zero puxaria a média para baixo artificialmente. As três
+# MAGIC O comportamento nativo do `AVG`, ignorar nulos, é o correto aqui. As três
 # MAGIC alternativas são exibidas para tornar a decisão auditável.
 
 # COMMAND ----------
@@ -299,9 +296,8 @@ assert divergencias_2 == 0, "As duas implementações produzem resultados difere
 # MAGIC %md
 # MAGIC ### Contexto: volume por hora
 # MAGIC
-# MAGIC A média de passageiros isolada pode enganar — uma hora com poucas corridas
-# MAGIC produz média mais volátil. Cruzar com o volume mostra onde a métrica é mais
-# MAGIC confiável.
+# MAGIC A média isolada pode enganar: uma hora com poucas corridas produz média
+# MAGIC mais volátil. Cruzar com o volume mostra onde a métrica é mais confiável.
 
 # COMMAND ----------
 

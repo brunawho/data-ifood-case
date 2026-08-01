@@ -1,10 +1,9 @@
 """
 Obtenção da SparkSession.
 
-No Databricks a sessão já existe e é gerenciada pelo runtime - criar outra é
-erro. Localmente precisamos construí-la com as extensões do Delta. Este módulo
-esconde essa diferença para que os módulos de transformação apenas peçam
-`get_spark()` e não saibam onde estão.
+No Databricks a sessão já existe e é gerenciada pelo runtime; localmente
+precisa ser construída com as extensões do Delta. Os módulos de transformação
+apenas chamam `get_spark()` e não sabem onde estão rodando.
 """
 
 from __future__ import annotations
@@ -21,10 +20,8 @@ logger = logging.getLogger(__name__)
 def get_spark(app_name: str = "ifood-case") -> SparkSession:
     """Devolve a SparkSession ativa (Databricks) ou cria uma local com Delta."""
     if config.IS_DATABRICKS:
-        # getActiveSession() em vez de builder.getOrCreate(): deixa explícito
-        # que estamos reaproveitando a sessão do runtime, não criando nada.
         spark = SparkSession.getActiveSession()
-        if spark is None:  # fallback defensivo (ex.: databricks-connect)
+        if spark is None:  # fallback para databricks-connect
             spark = SparkSession.builder.getOrCreate()
         return spark
 
@@ -39,14 +36,13 @@ def get_spark(app_name: str = "ifood-case") -> SparkSession:
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
         .config("spark.sql.warehouse.dir", f"{config.LOCAL_ROOT}/warehouse")
-        # Datas anteriores a 1900 aparecem nos dados sujos da TLC. Sem isso o
-        # Spark 3.x lança exceção ao ler/escrever essas datas (mudança de
-        # calendário Julian/Gregorian entre versões do Parquet).
+        # A base tem datas anteriores a 1900; sem isto o Spark 3.x lança exceção
+        # ao lê-las (rebase de calendário juliano/gregoriano no Parquet).
         .config("spark.sql.parquet.datetimeRebaseModeInRead", "CORRECTED")
         .config("spark.sql.parquet.datetimeRebaseModeInWrite", "CORRECTED")
     )
-    # configure_spark_with_delta_pip usa os jars que vieram no pip install,
-    # em vez de baixar do Maven Central - que é o que quebra atrás de proxy.
+    # Usa os jars vindos do pip install em vez de baixar do Maven Central,
+    # que é o que costuma falhar atrás de proxy corporativo.
     return configure_spark_with_delta_pip(builder).getOrCreate()
 
 

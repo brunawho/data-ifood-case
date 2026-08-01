@@ -3,20 +3,17 @@
 # MAGIC # 03 — Análise Exploratória (EDA)
 # MAGIC
 # MAGIC **Etapa 3 de 5.** Investigação da bronze para dimensionar os problemas de
-# MAGIC qualidade **antes** de decidir como tratá-los.
+# MAGIC qualidade antes de decidir como tratá-los.
 # MAGIC
-# MAGIC Este notebook não transforma nada. Ele mede. Cada seção termina com uma
-# MAGIC decisão explícita — manter, corrigir ou descartar — justificada pelo
-# MAGIC número que a query devolveu, não por suposição.
-# MAGIC
-# MAGIC O princípio: uma regra que descarta 0,001% da base e uma que descarta 10%
-# MAGIC exigem níveis muito diferentes de justificativa. Sem medir, não há como
-# MAGIC saber em qual caso estamos.
+# MAGIC Este notebook não transforma nada, apenas mede. Cada seção termina com uma
+# MAGIC decisão justificada pelo número que a query devolveu: uma regra que
+# MAGIC descarta 0,001% da base e uma que descarta 10% exigem níveis muito
+# MAGIC diferentes de justificativa.
 # MAGIC
 # MAGIC **Pré-requisito:** `02_bronze` executado com os cinco meses.
 # MAGIC
-# MAGIC > **Nota:** este notebook fica fora de qualquer execução automatizada. EDA
-# MAGIC > é investigação humana que fundamenta o pipeline, não etapa dele.
+# MAGIC > Fica fora de qualquer execução automatizada: EDA é investigação humana
+# MAGIC > que fundamenta o pipeline, não etapa dele.
 
 # COMMAND ----------
 
@@ -57,7 +54,7 @@ mostrar_configuracao()
 # MAGIC ## 1. Integridade temporal
 # MAGIC
 # MAGIC Já sabemos que existem corridas fora do mês de referência, nas duas
-# MAGIC direções — de 2001 até setembro/2023. Falta dimensionar o quadro completo.
+# MAGIC direções, de 2001 até setembro/2023. Falta dimensionar o quadro completo.
 
 # COMMAND ----------
 
@@ -83,9 +80,8 @@ mostrar_configuracao()
 # MAGIC registros corrompidos. Os cinco meses do escopo concentram praticamente
 # MAGIC toda a base.
 # MAGIC
-# MAGIC A coluna `arquivos_de_origem` mostra de qual arquivo cada registro veio —
-# MAGIC útil para confirmar que a corrida de 1º de fevereiro no arquivo de janeiro
-# MAGIC é artefato de fronteira, não corrupção.
+# MAGIC A coluna `arquivos_de_origem` confirma que a corrida de 1º de fevereiro
+# MAGIC no arquivo de janeiro é artefato de fronteira, não corrupção.
 
 # COMMAND ----------
 
@@ -116,16 +112,14 @@ mostrar_configuracao()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC A comparação entre **média** e **mediana** é o diagnóstico mais rápido de
-# MAGIC assimetria: se a média for muito maior que a mediana, há outliers puxando o
-# MAGIC resultado — e isso é exatamente o risco da pergunta 1 do case, que pede uma
-# MAGIC média.
+# MAGIC Média muito maior que a mediana indica outliers puxando o resultado, que
+# MAGIC é exatamente o risco da pergunta 1 do case.
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ---
-# MAGIC ## 2. `total_amount` — a coluna da pergunta 1
+# MAGIC ## 2. `total_amount`, a coluna da pergunta 1
 # MAGIC
 # MAGIC O case pede a média de `total_amount` por mês. Antes de calcular qualquer
 # MAGIC média é preciso saber o que existe nessa coluna.
@@ -137,7 +131,7 @@ mostrar_configuracao()
 # MAGIC
 # MAGIC Valores negativos nesta base costumam ser **estornos e ajustes contábeis**:
 # MAGIC a TLC registra a correção como uma linha de valor negativo, e não removendo
-# MAGIC a corrida original. Não são erro de leitura — são semântica do dado.
+# MAGIC a corrida original. Não são erro de leitura, e sim semântica do dado.
 
 # COMMAND ----------
 
@@ -206,7 +200,7 @@ mostrar_configuracao()
 
 # MAGIC %md
 # MAGIC ---
-# MAGIC ## 3. `passenger_count` — a coluna da pergunta 2
+# MAGIC ## 3. `passenger_count`, a coluna da pergunta 2
 # MAGIC
 # MAGIC A pergunta 2 pede a média de passageiros por hora do dia em maio. Nulo e
 # MAGIC zero têm tratamentos diferentes e mudam a resposta.
@@ -227,13 +221,11 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC Três categorias exigem decisão:
 # MAGIC
-# MAGIC - **`NULL`** — o taxímetro não registrou. Não é "zero passageiro", é
-# MAGIC   ausência de informação. Incluir como zero puxaria a média para baixo
-# MAGIC   artificialmente.
-# MAGIC - **`0`** — corrida registrada com zero passageiros. Pode ser erro de
-# MAGIC   digitação do motorista ou corrida cancelada.
-# MAGIC - **valores altos (7, 8, 9)** — acima da capacidade legal de um táxi de
-# MAGIC   NY, que é 4 passageiros (5 em minivans). Provável erro de digitação.
+# MAGIC - **`NULL`**: o taxímetro não registrou. Ausência de informação, não zero
+# MAGIC   passageiro. Incluir como zero puxaria a média para baixo.
+# MAGIC - **`0`**: erro de digitação do motorista ou corrida cancelada.
+# MAGIC - **7, 8, 9**: acima da capacidade legal de um táxi de NY (4 passageiros,
+# MAGIC   5 em minivans).
 
 # COMMAND ----------
 
@@ -268,7 +260,7 @@ mostrar_configuracao()
 # MAGIC ## 4. Duplicatas
 # MAGIC
 # MAGIC A origem não fornece chave primária. Uma corrida é razoavelmente
-# MAGIC identificada pela combinação de fornecedor, horários e locais — registros
+# MAGIC identificada pela combinação de fornecedor, horários e locais; registros
 # MAGIC idênticos nesses campos são candidatos a duplicata.
 
 # COMMAND ----------
@@ -291,14 +283,10 @@ mostrar_configuracao()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC **Cuidado na interpretação:** duas corridas podem legitimamente coincidir
-# MAGIC em todos esses campos — dois táxis do mesmo fornecedor saindo da mesma zona
-# MAGIC para a mesma zona, no mesmo segundo, cobrando o mesmo valor. É improvável,
-# MAGIC mas com 16 milhões de registros, improvável acontece.
-# MAGIC
-# MAGIC Sem chave primária na origem, não há como distinguir duplicata real de
-# MAGIC coincidência. Se o volume for baixo, a decisão conservadora é **manter** e
-# MAGIC documentar.
+# MAGIC **Cuidado na interpretação:** duas corridas podem coincidir legitimamente
+# MAGIC em todos esses campos. É improvável, mas com 16 milhões de registros o
+# MAGIC improvável acontece. Sem chave primária na origem não há como distinguir
+# MAGIC duplicata real de coincidência, então volume baixo justifica manter.
 
 # COMMAND ----------
 
@@ -324,7 +312,7 @@ mostrar_configuracao()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### 5.1 `VendorID` — domínio esperado
+# MAGIC ### 5.1 `VendorID`: domínio esperado
 # MAGIC
 # MAGIC O dicionário de dados da TLC define apenas dois fornecedores: `1` (Creative
 # MAGIC Mobile Technologies) e `2` (VeriFone). Qualquer outro valor está fora do
@@ -350,15 +338,14 @@ mostrar_configuracao()
 # MAGIC O enunciado admite duas leituras, com respostas em ordens de grandeza
 # MAGIC completamente diferentes:
 # MAGIC
-# MAGIC **(a) Ticket médio por corrida, agrupado por mês** — "de tudo que a frota
-# MAGIC recebeu, quanto vale uma corrida em média". Resultado na casa das dezenas
-# MAGIC de dólares.
+# MAGIC **(a) Ticket médio por corrida, agrupado por mês.** Resultado na casa das
+# MAGIC dezenas de dólares.
 # MAGIC
-# MAGIC **(b) Faturamento médio mensal da frota** — soma tudo que entrou em cada
-# MAGIC mês e tira a média entre os meses. Resultado na casa das dezenas de milhões.
+# MAGIC **(b) Faturamento médio mensal da frota.** Resultado na casa das dezenas
+# MAGIC de milhões.
 # MAGIC
-# MAGIC A query abaixo calcula as duas. A entrega final apresentará ambas, com a
-# MAGIC leitura explicitada — escolher uma silenciosamente seria esconder uma
+# MAGIC A query abaixo calcula as duas. A entrega final apresenta ambas com a
+# MAGIC leitura explicitada, porque escolher uma silenciosamente esconderia uma
 # MAGIC decisão que muda o resultado por seis ordens de grandeza.
 
 # COMMAND ----------
@@ -390,24 +377,31 @@ mostrar_configuracao()
 
 # MAGIC %md
 # MAGIC ---
-# MAGIC ## Síntese — regras propostas para a silver
+# MAGIC ## Síntese: regras para a silver
 # MAGIC
-# MAGIC Preencher com os números obtidos acima antes de implementar a silver:
+# MAGIC | # | Achado | Volume | % da base | Decisão |
+# MAGIC |---|---|---|---|---|
+# MAGIC | 1 | Corridas fora de jan–mai/2023 | 104 | 0,00064% | Descartar |
+# MAGIC | 2 | Duração ≤ 0 | 6.181 | 0,0382% | Descartar |
+# MAGIC | 3 | Duração acima de 24h | 94 | 0,0006% | Manter, sinalizar |
+# MAGIC | 4 | `total_amount` negativo (estorno) | 141.407 | 0,8736% | Manter, sinalizar |
+# MAGIC | 5 | `total_amount` zero | 2.739 | 0,0169% | Manter, sinalizar |
+# MAGIC | 6 | `total_amount` extremo (acima de US$ 1.000) | 11 | 0,00007% | Manter, sem corte |
+# MAGIC | 7 | `passenger_count` nulo | 428.665 | 2,6483% | Manter; `AVG` ignora |
+# MAGIC | 8 | `passenger_count` zero | 273.481 | 1,6896% | Manter, sinalizar |
+# MAGIC | 9 | `passenger_count` 7–9 | 112 | 0,0007% | Manter, sinalizar |
+# MAGIC | 10 | Duplicatas aparentes | 2 | ~0% | Manter |
+# MAGIC | 11 | `VendorID` = 6 | 3.983 | 0,0246% | Manter, sinalizar |
 # MAGIC
-# MAGIC | # | Achado | Volume | Decisão |
-# MAGIC |---|---|---|---|
-# MAGIC | 1 | Corridas fora do escopo jan–mai/2023 | _____ | Descartar |
-# MAGIC | 2 | Duração negativa (`dropoff` < `pickup`) | _____ | Descartar |
-# MAGIC | 3 | `total_amount` negativo (estornos) | _____ | Descartar da métrica |
-# MAGIC | 4 | `total_amount` extremo | _____ | Avaliar |
-# MAGIC | 5 | `passenger_count` nulo | _____ | Manter, excluir da média |
-# MAGIC | 6 | `passenger_count` zero | _____ | Avaliar |
-# MAGIC | 7 | Duplicatas aparentes | _____ | Manter e documentar |
+# MAGIC Total descartado: **6.284 registros (0,039%)**. A soma das linhas 1 e 2 dá
+# MAGIC 6.285 porque um registro apresenta os dois problemas e é classificado
+# MAGIC apenas pelo primeiro critério.
 # MAGIC
-# MAGIC **Princípio norteador:** a silver preserva a granularidade da corrida e
-# MAGIC descarta apenas o que é comprovadamente inválido. Decisões de métrica
-# MAGIC (excluir estorno de uma média, por exemplo) pertencem à gold, não à silver
-# MAGIC — assim a camada de consumo continua servindo perguntas que ainda não
-# MAGIC foram feitas.
+# MAGIC A silver preserva a granularidade da corrida e descarta apenas o
+# MAGIC comprovadamente inválido. Decisões de métrica, como excluir estorno de uma
+# MAGIC média, pertencem à gold: assim a camada de consumo continua servindo
+# MAGIC perguntas que ainda não foram feitas.
+# MAGIC
+# MAGIC Justificativa detalhada de cada decisão em `docs/achados-eda.md`.
 # MAGIC
 # MAGIC Próximo: **`04_silver`**.
