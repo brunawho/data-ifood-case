@@ -100,21 +100,56 @@ print(f"gold.yellow_trips_hourly_passengers  : {contagens['hourly']} linhas")
 from pyspark.sql import functions as F
 
 silver = spark.table(config.TABLE_SILVER)
+positivo = ~F.col("flag_valor_nao_positivo")
 
 resposta_1 = (
     silver.groupBy("pickup_year_month")
     .agg(
         F.count("*").alias("corridas"),
         F.round(F.avg("total_amount"), 2).alias("ticket_medio_bruto"),
-        F.round(
-            F.avg(F.when(~F.col("flag_valor_nao_positivo"), F.col("total_amount"))), 2
-        ).alias("ticket_medio_sem_estornos"),
+        F.round(F.avg(F.when(positivo, F.col("total_amount"))), 2).alias(
+            "ticket_medio_sem_estornos"
+        ),
         F.round(F.sum("total_amount"), 2).alias("faturamento_bruto"),
+        F.round(F.sum(F.when(positivo, F.col("total_amount"))), 2).alias(
+            "faturamento_sem_estornos"
+        ),
+        F.sum(F.when(F.col("flag_valor_nao_positivo"), 1).otherwise(0)).alias(
+            "estornos"
+        ),
     )
-    .orderBy("pickup_year_month")
+    .withColumnRenamed("pickup_year_month", "competencia")
+    .orderBy("competencia")
 )
 
 display(resposta_1)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### As duas versões concordam?
+# MAGIC
+# MAGIC Apresentar duas implementações só tem valor se elas produzirem o mesmo
+# MAGIC resultado. A verificação abaixo compara a agregação materializada na gold
+# MAGIC com o cálculo feito diretamente sobre a silver, nos dois sentidos —
+# MAGIC `exceptAll` em uma direção só não detectaria linhas sobrando na outra.
+
+# COMMAND ----------
+
+resposta_1_sql = spark.sql("""
+    SELECT pickup_year_month AS competencia, corridas,
+           ticket_medio_bruto, ticket_medio_sem_estornos,
+           faturamento_bruto, faturamento_sem_estornos, estornos
+    FROM workspace.gold.yellow_trips_monthly
+""")
+
+divergencias = (
+    resposta_1_sql.exceptAll(resposta_1).count()
+    + resposta_1.exceptAll(resposta_1_sql).count()
+)
+
+print(f"Divergências entre SQL e PySpark: {divergencias}")
+assert divergencias == 0, "As duas implementações produzem resultados diferentes"
 
 # COMMAND ----------
 
@@ -123,30 +158,38 @@ display(resposta_1)
 # MAGIC
 # MAGIC Média entre as cinco competências, nas duas leituras.
 # MAGIC
-# MAGIC Note a distinção entre **média simples** e **média ponderada**: a média das
-# MAGIC cinco médias mensais atribui peso igual a cada mês, ignorando que maio teve
-# MAGIC cerca de 20% mais corridas que fevereiro. A média sobre todas as corridas
-# MAGIC pondera pelo volume real. As duas estão corretas — respondem a perguntas
-# MAGIC diferentes.
+# MAGIC Note a distinção entre **média simples** e **média ponderada** na leitura
+# MAGIC (a): a média das cinco médias mensais atribui peso igual a cada mês,
+# MAGIC ignorando que maio teve cerca de 20% mais corridas que fevereiro. A média
+# MAGIC sobre todas as corridas pondera pelo volume real. As duas estão corretas —
+# MAGIC respondem a perguntas diferentes.
+# MAGIC
+# MAGIC A leitura (b) não admite versão ponderada: a média de faturamento entre
+# MAGIC cinco meses é uma média simples por definição, já que a unidade de
+# MAGIC agregação é o próprio mês.
+# MAGIC
+# MAGIC As duas implementações já foram demonstradas acima. As consolidações a
+# MAGIC seguir usam SQL por concisão — o resultado independe da API escolhida.
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC WITH mensal AS (
-# MAGIC   SELECT * FROM workspace.gold.yellow_trips_monthly
-# MAGIC )
+# MAGIC -- Leitura (a): ticket medio por corrida
 # MAGIC SELECT
-# MAGIC   '(a) Ticket medio por corrida'                        AS leitura,
-# MAGIC   ROUND(AVG(ticket_medio_sem_estornos), 2)              AS media_simples,
-# MAGIC   ROUND(SUM(faturamento_sem_estornos) / SUM(corridas_faturadas), 2)
-# MAGIC                                                          AS media_ponderada
-# MAGIC FROM mensal
-# MAGIC UNION ALL
+# MAGIC   ROUND(AVG(ticket_medio_sem_estornos), 2)                          AS media_simples,
+# MAGIC   ROUND(SUM(faturamento_sem_estornos) / SUM(corridas_faturadas), 2) AS media_ponderada
+# MAGIC FROM workspace.gold.yellow_trips_monthly
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Leitura (b): faturamento mensal da frota
 # MAGIC SELECT
-# MAGIC   '(b) Faturamento mensal da frota',
-# MAGIC   ROUND(AVG(faturamento_sem_estornos), 2),
-# MAGIC   NULL
-# MAGIC FROM mensal
+# MAGIC   ROUND(AVG(faturamento_sem_estornos), 2) AS faturamento_medio_mensal,
+# MAGIC   ROUND(MIN(faturamento_sem_estornos), 2) AS menor_mes,
+# MAGIC   ROUND(MAX(faturamento_sem_estornos), 2) AS maior_mes,
+# MAGIC   ROUND(SUM(faturamento_sem_estornos), 2) AS total_no_periodo
+# MAGIC FROM workspace.gold.yellow_trips_monthly
 
 # COMMAND ----------
 
@@ -195,11 +238,41 @@ resposta_2 = (
     .agg(
         F.count("*").alias("corridas"),
         F.round(F.avg("passenger_count"), 4).alias("media_passageiros"),
+        F.round(F.avg(F.coalesce("passenger_count", F.lit(0))), 4).alias(
+            "media_nulo_como_zero"
+        ),
+        F.round(
+            F.avg(F.when(F.col("passenger_count") > 0, F.col("passenger_count"))), 4
+        ).alias("media_apenas_positivos"),
+        F.sum(F.when(F.col("flag_passageiros_ausente"), 1).otherwise(0)).alias(
+            "sem_registro"
+        ),
     )
     .orderBy("pickup_hour")
 )
 
 display(resposta_2)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### As duas versões concordam?
+
+# COMMAND ----------
+
+resposta_2_sql = spark.sql("""
+    SELECT pickup_hour, corridas, media_passageiros,
+           media_nulo_como_zero, media_apenas_positivos, sem_registro
+    FROM workspace.gold.yellow_trips_hourly_passengers
+""")
+
+divergencias_2 = (
+    resposta_2_sql.exceptAll(resposta_2).count()
+    + resposta_2.exceptAll(resposta_2_sql).count()
+)
+
+print(f"Divergências entre SQL e PySpark: {divergencias_2}")
+assert divergencias_2 == 0, "As duas implementações produzem resultados diferentes"
 
 # COMMAND ----------
 
