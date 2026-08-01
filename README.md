@@ -43,6 +43,9 @@ pipeline não duplica dado, e reprocessar um mês não afeta os outros.
 
 ```
 ├─ notebooks/     # Orquestradores executados no Databricks
+│  ├─ _setup.py           # Configuração compartilhada (%run pelos demais)
+│  ├─ 01_landing.py       # Origem TLC -> Volume
+│  └─ 02_bronze.py        # Landing -> Delta
 ├─ src/
 │  ├─ config.py         # Configuração central (isola local x Databricks)
 │  ├─ ingestion/        # Origem -> landing
@@ -53,12 +56,20 @@ pipeline não duplica dado, e reprocessar um mês não afeta os outros.
 └─ requirements.txt
 ```
 
+Os notebooks são apenas orquestradores: chamam funções de `src/` e validam o
+resultado. Nenhuma regra de negócio vive dentro deles — notebook não é testável
+com `pytest` nem revisável em pull request.
+
+A numeração indica a ordem de execução. O notebook de EDA fica fora de qualquer
+execução automatizada de propósito: análise exploratória é investigação humana
+que justifica as regras da silver, não etapa de pipeline.
+
 ## Execução
 
 ### Databricks (recomendado)
 
 1. **Workspace → Create → Git folder**, apontando para este repositório
-2. Executar `notebooks/01_landing_bronze.py`
+2. Executar os notebooks na ordem: `01_landing`, `02_bronze`
 
 Os schemas e o Volume são criados pelo próprio pipeline, de forma idempotente.
 
