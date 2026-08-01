@@ -200,6 +200,26 @@ registros sem correspondência na documentação.
 > corrida inválida — as demais colunas desses registros são consistentes. Marcar
 > a inconsistência preserva a informação e a torna visível ao consumidor.
 
+#### Achado adicional: o fornecedor 6 concentra desproporcionalmente os descartes
+
+Comparando bronze e silver após a aplicação das regras:
+
+| | Bronze | Silver | Descartados |
+|---|---|---|---|
+| `VendorID = 6` | 3.983 | 3.209 | **774** |
+
+Os 774 registros descartados do fornecedor 6 representam **12,3% de todo o
+descarte** (6.284 registros), embora esse fornecedor responda por apenas 0,025%
+da base.
+
+Em taxa: **19,4%** dos registros do fornecedor 6 foram descartados por invalidez,
+contra **0,039%** da base geral — cerca de 500 vezes mais.
+
+O valor não documentado, portanto, não é apenas uma lacuna de dicionário: é
+indicador de uma fonte com qualidade de dados sensivelmente inferior. Isso
+reforça a decisão de sinalizar em vez de ignorar — consumidores que exijam alta
+confiabilidade podem excluir esses registros de forma consciente.
+
 ---
 
 ## 6. Ambiguidade da pergunta 1
@@ -249,7 +269,14 @@ pondera pelo volume real.
 | 10 | Duplicatas aparentes | 2 | ~0% | Manter |
 | 11 | `VendorID` = 6 | 3.983 | 0,0246% | Manter, sinalizar |
 
-**Volume total descartado: 6.285 registros (0,039%).**
+**Volume total descartado: 6.284 registros (0,039%).**
+
+*Nota sobre a contagem:* somando as categorias isoladamente chega-se a 6.285.
+A diferença é um registro que apresenta **os dois problemas** — está fora do
+escopo temporal e tem duração não-positiva. Como os motivos de descarte são
+mutuamente exclusivos e avaliados em ordem, ele é classificado apenas como
+`fora_do_escopo_temporal`. Verificado na execução: quarentena registrou 104
+fora de escopo e 6.180 de duração não-positiva.
 
 ### Princípio adotado
 
