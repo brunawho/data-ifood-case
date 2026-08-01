@@ -39,8 +39,15 @@ logger = logging.getLogger(__name__)
 # Colunas ausentes num mês específico entram como NULL, sem quebrar a execução.
 CANONICAL_TYPES: dict[str, str] = {
     "VendorID": "int",
-    "tpep_pickup_datetime": "timestamp",
-    "tpep_dropoff_datetime": "timestamp",
+    # A origem entrega TIMESTAMP_NTZ ("no time zone"), e está correta: a TLC
+    # registra hora local de Nova York, sem offset. Converter para TIMESTAMP
+    # faria o Spark interpretar esse horário de parede no fuso da *sessão* e
+    # guardar um instante absoluto - o que só devolve a hora original se a
+    # sessão de leitura usar o mesmo fuso da sessão de escrita. Como a pergunta
+    # 2 do case é justamente sobre hora do dia, essa dependência implícita de
+    # configuração seria um erro esperando para acontecer. Preservamos NTZ.
+    "tpep_pickup_datetime": "timestamp_ntz",
+    "tpep_dropoff_datetime": "timestamp_ntz",
     # Nullable na origem (aparece como double justamente por isso). Mantemos
     # int nullable: o tratamento de nulo é decisão da silver, não da bronze.
     "passenger_count": "int",
