@@ -221,7 +221,7 @@ python -m src.transform.gold       # silver  -> gold
 │  ├─ 02_bronze.py          # Landing -> Delta
 │  ├─ 03_eda.py             # Análise exploratória (opcional)
 │  ├─ 04_silver.py          # Bronze  -> Silver
-│  └─ 05_analise.py         # Respostas em SQL e PySpark
+│  └─ 05_analise_gold.py         # Respostas em SQL e PySpark
 ├─ src/
 │  ├─ config.py             # Configuração central (isola local x Databricks)
 │  ├─ ingestion/landing.py  # Download idempotente + manifesto
