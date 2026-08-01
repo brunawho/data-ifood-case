@@ -20,6 +20,10 @@
 
 # COMMAND ----------
 
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
 # MAGIC %run ./_setup
 
 # COMMAND ----------
@@ -42,8 +46,8 @@ mostrar_configuracao()
 
 from src.ingestion.landing import ingest
 
-PERIODOS = ("2023-01",)  # troque por config.PERIODS após validar
-# PERIODOS = config.PERIODS
+#PERIODOS = ("2023-01",)  # troque por config.PERIODS após validar
+PERIODOS = config.PERIODS
 
 resultados = ingest(PERIODOS)
 display(resultados)
