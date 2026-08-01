@@ -192,7 +192,7 @@ para quem quiser aprofundar.
 Todos os números acima são reproduzíveis executando os notebooks na ordem:
 
 ```
-01_landing → 02_bronze → 04_silver → 05_analise
+01_landing → 02_bronze → 04_silver → 05_analise_gold
 ```
 
 O notebook `03_eda` é opcional: documenta a investigação que fundamentou as
