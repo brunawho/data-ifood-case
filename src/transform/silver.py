@@ -126,7 +126,11 @@ def build_silver(spark: SparkSession) -> dict[str, int]:
     """
     ensure_namespaces(spark)
 
-    classificado = classify(spark.table(config.TABLE_BRONZE)).cache()
+    # Sem .cache(): compute serverless não suporta persistência de DataFrame.
+    # O plano é reavaliado nas duas escritas, o que é aceitável - e as contagens
+    # abaixo saem das tabelas Delta já gravadas, onde COUNT(*) é resolvido pelas
+    # estatísticas do log de transação, sem varrer os dados.
+    classificado = classify(spark.table(config.TABLE_BRONZE))
 
     validos = classificado.filter(F.col("motivo_descarte").isNull()).drop(
         "motivo_descarte"
@@ -150,9 +154,8 @@ def build_silver(spark: SparkSession) -> dict[str, int]:
         .saveAsTable(config.TABLE_SILVER_QUARANTINE)
     )
 
-    total_validos = validos.count()
-    total_descartados = descartados.count()
-    classificado.unpersist()
+    total_validos = spark.table(config.TABLE_SILVER).count()
+    total_descartados = spark.table(config.TABLE_SILVER_QUARANTINE).count()
 
     spark.sql(f"""
         COMMENT ON TABLE {config.TABLE_SILVER} IS
