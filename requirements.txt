@@ -22,4 +22,3 @@ delta-spark==3.2.0
 # --- Desenvolvimento ------------------------------------------------------- #
 # Testes das funções puras (classificação de qualidade, resolução de caminhos).
 # Não são necessários para executar o pipeline.
-pytest==8.3.3
