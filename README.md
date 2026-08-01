@@ -35,6 +35,13 @@ têm schema estável (mesma coluna como `int32` num mês e `int64` noutro). A
 leitura é feita arquivo por arquivo, com conversão posterior para o tipo
 canônico — o que evita `SchemaColumnConvertNotSupportedException`.
 
+**`TIMESTAMP_NTZ` preservado.** A origem entrega os horários como
+`timestamp_ntz` (*no time zone*), o que é semanticamente correto: a TLC registra
+hora local de Nova York, sem offset. Converter para `TIMESTAMP` faria o Spark
+interpretar o horário de parede no fuso da sessão, criando uma dependência
+implícita de configuração — e a pergunta 2 do case é justamente sobre hora do
+dia.
+
 **Idempotência em todas as camadas.** A landing compara tamanho com a origem
 antes de baixar; a bronze usa `replaceWhere` por partição. Reexecutar o
 pipeline não duplica dado, e reprocessar um mês não afeta os outros.
