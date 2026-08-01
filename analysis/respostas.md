@@ -4,7 +4,7 @@ Resultados obtidos sobre a camada silver (`workspace.silver.fact_yellow_trips`),
 com 16.180.102 corridas de *yellow taxi* entre janeiro e maio de 2023.
 
 As consultas que produzem estes números estão em
-[`notebooks/05_analise.py`](../notebooks/05_analise.py), em SQL e PySpark, com
+[`notebooks/05_analise_gold.py`](../notebooks/05_analise_gold.py), em SQL e PySpark, com
 verificação automática de que as duas implementações concordam.
 
 ---
@@ -26,34 +26,47 @@ verificação automática de que as duas implementações concordam.
 As duas são respondidas abaixo. Escolher uma silenciosamente esconderia uma
 decisão que altera o resultado por um fator de milhões.
 
-### Tratamento de estornos
+### Tratamento de lançamentos não-positivos
 
-A base contém 143.792 lançamentos com `total_amount` ≤ 0. Não são erro: a TLC
-registra estornos e ajustes contábeis como linhas de valor negativo, mantendo a
-corrida original. São preservados na camada silver.
+A base contém 143.792 lançamentos com `total_amount` ≤ 0, sendo 141.407
+negativos e 2.739 zerados.
 
-Para a métrica de valor recebido por corrida, porém, um estorno não é uma
-corrida. Os números abaixo apresentam as duas versões, e a versão **sem
-estornos** é a adotada como resposta.
+**A interpretação usual** é que sejam estornos e ajustes contábeis: a TLC
+registraria a correção como linha de valor negativo, mantendo a corrida
+original. **Esta é uma hipótese de negócio, e os dados não a comprovam.** O
+dataset não traz campo que identifique reversão, e não há chave de corrida que
+permita parear um lançamento negativo com a corrida que ele corrigiria.
+
+Por isso a resposta principal apresentada é a **literal**, sobre todos os
+registros. A versão que exclui os não-positivos aparece como análise de
+sensibilidade, com a hipótese explicitada. O leitor decide qual usar sabendo o
+que está assumindo.
 
 ### Resultado por competência
 
-| Competência | Corridas | Ticket médio (bruto) | Ticket médio (sem estornos) | Faturamento (bruto) | Faturamento (sem estornos) | Estornos |
+Em negrito, a resposta literal (todos os registros). As colunas sem
+não-positivos são a análise de sensibilidade.
+
+| Competência | Corridas | Ticket médio | Faturamento | Ticket s/ não-positivos | Faturamento s/ não-positivos | Não-positivos |
 |---|---|---|---|---|---|---|
-| 2023-01 | 3.065.605 | US$ 27,02 | **US$ 27,45** | US$ 82.835.941,98 | **US$ 83.440.925,19** | 25.694 |
-| 2023-02 | 2.912.738 | US$ 26,90 | **US$ 27,34** | US$ 78.341.799,94 | **US$ 78.935.054,89** | 25.392 |
-| 2023-03 | 3.402.207 | US$ 27,80 | **US$ 28,27** | US$ 94.584.847,02 | **US$ 95.313.833,75** | 30.296 |
-| 2023-04 | 3.287.076 | US$ 28,27 | **US$ 28,76** | US$ 92.921.264,98 | **US$ 93.674.019,97** | 30.205 |
-| 2023-05 | 3.512.476 | US$ 28,96 | **US$ 29,46** | US$ 101.730.574,60 | **US$ 102.538.638,06** | 32.205 |
+| 2023-01 | 3.065.605 | **US$ 27,02** | **US$ 82.835.941,98** | US$ 27,45 | US$ 83.440.925,19 | 25.694 |
+| 2023-02 | 2.912.738 | **US$ 26,90** | **US$ 78.341.799,94** | US$ 27,34 | US$ 78.935.054,89 | 25.392 |
+| 2023-03 | 3.402.207 | **US$ 27,80** | **US$ 94.584.847,02** | US$ 28,27 | US$ 95.313.833,75 | 30.296 |
+| 2023-04 | 3.287.076 | **US$ 28,27** | **US$ 92.921.264,98** | US$ 28,76 | US$ 93.674.019,97 | 30.205 |
+| 2023-05 | 3.512.476 | **US$ 28,96** | **US$ 101.730.574,60** | US$ 29,46 | US$ 102.538.638,06 | 32.205 |
 
 ### Resposta
 
 **Leitura (a), ticket médio por corrida**
 
-| Cálculo | Valor |
-|---|---|
-| Média simples das cinco competências | **US$ 28,26** |
-| Média ponderada pelo volume de corridas | **US$ 28,30** |
+| Cálculo | Todos os registros | Sem não-positivos |
+|---|---|---|
+| Média simples das cinco competências | **US$ 27,79** | US$ 28,26 |
+| Média ponderada pelo volume de corridas | **US$ 27,84** | US$ 28,30 |
+
+A hipótese de que os não-positivos são estornos desloca a resposta em cerca de
+1,7%. Não é diferença que mude uma conclusão de negócio, mas é decisão que
+precisa estar declarada.
 
 A distinção não é preciosismo: a média simples atribui peso igual a cada mês,
 ignorando que maio teve 20,6% mais corridas que fevereiro. A ponderada divide o
@@ -63,12 +76,11 @@ que as competências são homogêneas entre si.
 
 **Leitura (b), faturamento mensal da frota**
 
-| Métrica | Valor |
-|---|---|
-| **Faturamento médio mensal** | **US$ 90.780.494,37** |
-| Menor mês (fevereiro) | US$ 78.935.054,89 |
-| Maior mês (maio) | US$ 102.538.638,06 |
-| Total no período | US$ 453.902.471,86 |
+| Métrica | Todos os registros | Sem não-positivos |
+|---|---|---|
+| **Faturamento médio mensal** | **US$ 90.120.269,65** | US$ 90.780.494,37 |
+| Menor mês (fevereiro) | US$ 78.341.799,94 | US$ 78.935.054,89 |
+| Maior mês (maio) | US$ 101.730.574,60 | US$ 102.538.638,06 |
 
 ### Observação: o crescimento no período
 
@@ -98,8 +110,21 @@ capturou a informação. **Nulo não é zero:** significa ausência de registro,
 corrida sem passageiro. Substituir por zero puxaria a média para baixo
 artificialmente.
 
-O comportamento nativo do `AVG`, ignorar nulos, é o correto e é o adotado. As
-alternativas são exibidas na tabela para tornar a decisão auditável.
+O comportamento nativo do `AVG`, ignorar nulos, é o adotado. As alternativas são
+exibidas na tabela para tornar a decisão auditável.
+
+**Ressalva sobre viés.** Ignorar valores ausentes só produz média não-enviesada
+se a ausência for independente da variável medida. Os dados desta base indicam
+que essa condição **não se sustenta**: a taxa de ausência varia de 2,4% às 12h a
+9,5% às 4h, quase quatro vezes mais na madrugada. Ausência que depende da hora
+do dia não é aleatória.
+
+A consequência é que as horas de maior ausência são estimadas sobre amostra
+menos completa, e o viés não pode ser quantificado sem saber o que caracteriza
+as corridas não registradas. As três alternativas de tratamento delimitam a
+faixa plausível: às 4h, a diferença entre ignorar nulos e tratá-los como zero
+chega a 0,13 passageiro. Corrigir o viés exigiria informação que o dataset não
+fornece; declará-lo é o que cabe aqui.
 
 ### Resultado — maio/2023
 

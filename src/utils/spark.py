@@ -41,8 +41,11 @@ def get_spark(app_name: str = "ifood-case") -> SparkSession:
         .config("spark.sql.parquet.datetimeRebaseModeInRead", "CORRECTED")
         .config("spark.sql.parquet.datetimeRebaseModeInWrite", "CORRECTED")
     )
-    # Usa os jars vindos do pip install em vez de baixar do Maven Central,
-    # que é o que costuma falhar atrás de proxy corporativo.
+    # Atenção: esta função configura `spark.jars.packages` com as coordenadas
+    # Maven do Delta compatíveis com a versão instalada via pip. Os JARs são
+    # baixados do Maven Central na primeira execução, então a inicialização
+    # exige rede. Atrás de proxy, é preciso pré-popular o cache Ivy ou apontar
+    # `spark.jars` para os artefatos locais.
     return configure_spark_with_delta_pip(builder).getOrCreate()
 
 

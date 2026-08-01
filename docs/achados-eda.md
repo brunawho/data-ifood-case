@@ -144,9 +144,14 @@ valores 7 a 9 (112 registros no total) excedem qualquer configuração legal.
 
 A escolha desloca a resposta em até 4,8%.
 
-> **Decisão:** `NULL` significa ausência de registro, não zero passageiro —
-> tratar como zero introduziria viés para baixo. O comportamento nativo do `AVG`
-> (ignorar nulos) é o correto e será mantido explicitamente documentado.
+> **Decisão:** `NULL` significa ausência de registro, não zero passageiro;
+> tratar como zero introduziria viés para baixo. Adota-se o comportamento nativo
+> do `AVG`, que ignora nulos.
+>
+> **Com uma ressalva:** essa escolha só é não-enviesada se a ausência for
+> independente da variável medida, e a análise horária mostra que não é (2,4% de
+> ausência às 12h contra 9,5% às 4h). O viés residual não é quantificável com as
+> colunas disponíveis, então é declarado em vez de corrigido.
 > Registros com `passenger_count = 0` são preservados na silver e sinalizados,
 > por não haver como distinguir erro de digitação de corrida cancelada.
 

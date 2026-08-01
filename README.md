@@ -32,7 +32,7 @@ Catalog.
 
 | Camada | Objeto | Responsabilidade |
 |---|---|---|
-| **Landing** | `/Volumes/workspace/raw/landing` | Arquivos originais, byte a byte, imutáveis. Sem interpretação. |
+| **Landing** | `/Volumes/workspace/raw/landing` | Arquivos originais, byte a byte, sem interpretação. |
 | **Bronze** | `workspace.bronze.yellow_tripdata` | Schema da origem com tipos canonizados + auditoria. Nenhum registro filtrado. |
 | **Silver** | `workspace.silver.fact_yellow_trips` | Camada de consumo. Limpa, tipada, com colunas derivadas e sinalizações. |
 | **Quarentena** | `workspace.silver.fact_yellow_trips_quarantine` | Registros descartados, com o motivo. |
@@ -43,7 +43,10 @@ Catalog.
 Cada uma resolve um problema que a anterior não pode resolver:
 
 - A **landing** permite reprocessar tudo sem depender de a origem estar no ar, e
-  torna auditável qualquer decisão de limpeza feita adiante.
+  torna auditável qualquer decisão de limpeza feita adiante. Guarda uma versão
+  por competência: um novo download com tamanho divergente sobrescreve o
+  arquivo, e o manifesto registra a substituição. Versionar as versões
+  anteriores exigiria caminho por data de ingestão, o que não foi implementado.
 - A **bronze** torna os arquivos consultáveis por SQL sem ainda tomar decisão
   nenhuma sobre o conteúdo.
 - A **silver** aplica as regras de qualidade e entrega o dado pronto para
@@ -90,6 +93,14 @@ Agrupar por arquivo de origem produziria resposta errada. A partição da bronze
 chama-se `_ref_period` ("referência do arquivo") para manter essa distinção
 explícita; a silver particiona por `pickup_year_month`, derivado da data real.
 
+**`double` para valores monetários, com ressalva.** Os tipos canônicos espelham
+a origem, onde `total_amount` é `double`. Para valores monetários o tipo correto
+seria `DECIMAL(10,2)`: somar 16 milhões de valores em ponto flutuante acumula
+erro de arredondamento, e comparações de igualdade com dinheiro em `double` são
+traiçoeiras. Os números apresentados estão arredondados a duas casas e o erro
+acumulado é irrelevante nessa precisão, mas em um sistema financeiro real a
+canonização seria para `DECIMAL`.
+
 **CAST no plano do Spark, não no leitor de Parquet.** Os arquivos mensais não
 têm schema estável: a mesma coluna aparece como `int32` num mês e `int64`
 noutro. A leitura é feita arquivo por arquivo, com conversão posterior ao tipo
@@ -130,12 +141,22 @@ aqui seria uma reconstrução total com passos extras e risco de inconsistência
 
 **Lógica em módulos, não em notebooks.** Os notebooks apenas orquestram e
 validam; toda regra vive em `src/`, versionada, revisável em *pull request* e
-testável. Notebook que concentra regra de negócio não é nenhuma dessas coisas.
+coberta por testes. Notebook que concentra regra de negócio não é nenhuma dessas
+coisas.
+
+**As regras de qualidade têm testes.** Cada decisão de descarte ou sinalização
+tem um teste correspondente, com dados sintéticos. Isso protege contra regressão
+silenciosa: alterar o limite de passageiros ou a janela temporal sem atualizar a
+documentação quebra a suíte.
 
 **Linhagem registrada.** A landing mantém um manifesto (`JSONL`) com origem,
-destino, tamanho, *checksum* SHA-256 e horário de cada arquivo ingerido. As
-tabelas Delta guardam o histórico de transações. Se um número for questionado,
-é possível rastrear até o byte de origem.
+destino, tamanho, *checksum* SHA-256 e horário de cada arquivo ingerido, e cada
+linha da bronze carrega `_source_file` e `_ingested_at`. As tabelas Delta guardam
+o histórico de transações. Isso permite rastrear qualquer registro até o arquivo
+que o originou e até a execução que o gravou. O elo que falta para rastreabilidade
+completa é o checksum na linha: como o manifesto guarda uma entrada por
+competência, uma republicação silenciosa da origem com o mesmo tamanho não seria
+detectada.
 
 ---
 
@@ -172,7 +193,7 @@ Tabelas completas, decisões de tratamento e observações em
 2. Executar os notebooks na ordem:
 
 ```
-01_landing  →  02_bronze  →  04_silver  →  05_analise
+01_landing  →  02_bronze  →  04_silver  →  05_analise_gold
 ```
 
 Schemas, volume e tabelas são criados pelo próprio pipeline, de forma
@@ -198,6 +219,31 @@ python -m src.transform.silver     # bronze  -> silver
 python -m src.transform.gold       # silver  -> gold
 ```
 
+### Testes
+
+**No Databricks:** execute `notebooks/00_testes.py`. A fixture reaproveita a
+sessão do runtime, então as regras são validadas no mesmo ambiente em que o
+pipeline roda.
+
+**Localmente:**
+
+```bash
+pip install -r requirements.txt
+pytest                                  # suíte completa (requer JDK 8/11/17)
+pytest tests/test_config_e_ingestao.py  # só o que não precisa de Spark
+```
+
+São 29 funções de teste (mais de 40 casos, contando os parametrizados) cobrindo
+as funções puras e as regras de qualidade da silver. Os que verificam a
+classificação de registros usam uma `SparkSession` local e dados sintéticos, sem
+exigir os arquivos da TLC.
+
+Cada teste corresponde a uma decisão documentada em `docs/achados-eda.md`:
+que corrida fora do escopo é descartada, que estorno é sinalizado e **não**
+descartado, que a competência vem da data da corrida e não do arquivo, que nulo
+de `passenger_count` não vira zero. Alterar uma regra sem alterar a
+documentação faz o teste falhar.
+
 ### Variáveis de ambiente
 
 | Variável | Padrão | Descrição |
@@ -217,6 +263,7 @@ python -m src.transform.gold       # silver  -> gold
 │  └─ achados-eda.md        # Análise exploratória e regras de limpeza
 ├─ notebooks/               # Orquestradores (Databricks)
 │  ├─ _setup.py             # Configuração compartilhada (%run)
+│  ├─ 00_testes.py          # Suíte de testes
 │  ├─ 01_landing.py         # Origem  -> Volume
 │  ├─ 02_bronze.py          # Landing -> Delta
 │  ├─ 03_eda.py             # Análise exploratória (opcional)
@@ -230,6 +277,10 @@ python -m src.transform.gold       # silver  -> gold
 │  │  ├─ silver.py          # Limpeza, sinalização, quarentena
 │  │  └─ gold.py            # Agregações do case
 │  └─ utils/spark.py        # SparkSession e namespaces
+├─ tests/
+│  ├─ test_config_e_ingestao.py  # Caminhos, schema, idempotência
+│  └─ test_silver_regras.py      # Regras de qualidade (requer PySpark)
+├─ pytest.ini
 ├─ requirements.txt
 └─ README.md
 ```

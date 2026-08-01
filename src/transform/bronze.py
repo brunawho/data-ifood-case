@@ -97,9 +97,13 @@ def read_landing(spark: SparkSession, period: str) -> DataFrame:
                        period, ", ".join(sorted(unexpected)))
 
     year, month = period.split("-")
-    return raw.select(*projection).select(
-        "*",
-        # input_file_name() não é suportada em compute serverless / Photon.
+    # Projeção única: `_metadata` é coluna oculta da relação de arquivo. O
+    # analisador do Spark consegue resolvê-la através de um Project (regra
+    # AddMetadataColumns), mas selecioná-la junto das demais dispensa essa
+    # dependência e deixa a intenção explícita.
+    # input_file_name() não é usada por não ser suportada em serverless/Photon.
+    return raw.select(
+        *projection,
         F.col("_metadata.file_path").alias("_source_file"),
         F.current_timestamp().alias("_ingested_at"),
         F.lit(period).alias(PARTITION_COLUMN),

@@ -19,6 +19,7 @@ requests==2.32.3
 pyspark==3.5.1
 delta-spark==3.2.0
 
-# --- Desenvolvimento ------------------------------------------------------- #
-# Testes das funções puras (classificação de qualidade, resolução de caminhos).
-# Não são necessários para executar o pipeline.
+# --- Testes ---------------------------------------------------------------- #
+# Os testes de `tests/test_silver_regras.py` exigem PySpark; os demais rodam
+# apenas com pytest.
+pytest==8.3.3

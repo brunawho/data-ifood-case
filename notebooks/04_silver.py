@@ -86,8 +86,9 @@ print(f"Descarte    : {100 * resultado['descartados'] / total:.4f}%")
 # MAGIC %md
 # MAGIC ### 2. O que foi para a quarentena
 # MAGIC
-# MAGIC Os volumes devem bater com o previsto na EDA: 104 fora do escopo e 6.181 de
-# MAGIC duração não-positiva.
+# MAGIC Esperado: 104 fora do escopo e 6.180 de duração não-positiva. A EDA
+# MAGIC contou 6.181 registros com duração ≤ 0, mas um deles também está fora do
+# MAGIC escopo e recebe apenas o primeiro motivo, já que são mutuamente exclusivos.
 
 # COMMAND ----------
 
@@ -181,5 +182,5 @@ print(f"Descarte    : {100 * resultado['descartados'] / total:.4f}%")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Silver pronta e consultável por SQL. Próximo: **`05_analise_gold`**, com as
+# MAGIC Silver pronta e consultável por SQL. Próximo: **`05_analise`**, com as
 # MAGIC respostas às duas perguntas do case.
