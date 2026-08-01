@@ -1,16 +1,11 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # `_setup` — configuração compartilhada
+# MAGIC _setup — configuração compartilhada
+# MAGIC Notebook auxiliar. Não é executado diretamente: os demais o chamam com %run ./_setup na primeira célula.
 # MAGIC
-# MAGIC Notebook auxiliar. Não é executado diretamente: os demais o chamam com
-# MAGIC `%run ./_setup` na primeira célula.
+# MAGIC Existe para que a configuração de ambiente fique num lugar só. Com um notebook por etapa, repetir estas linhas em cada um seria duplicação que sai de sincronia na primeira alteração.
 # MAGIC
-# MAGIC Existe para que a configuração de ambiente fique num lugar só. Com um
-# MAGIC notebook por etapa, repetir estas linhas em cada um seria duplicação
-# MAGIC que sai de sincronia na primeira alteração.
-# MAGIC
-# MAGIC Após o `%run`, o notebook chamador tem acesso a `config`, `spark`, `os`,
-# MAGIC `sys` e `logging` já prontos.
+# MAGIC Após o %run, o notebook chamador tem acesso a config, spark, os, sys e logging já prontos.
 
 # COMMAND ----------
 
