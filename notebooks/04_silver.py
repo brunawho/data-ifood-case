@@ -181,5 +181,5 @@ print(f"Descarte    : {100 * resultado['descartados'] / total:.4f}%")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Silver pronta e consultável por SQL. Próximo: **`05_analise`**, com as
+# MAGIC Silver pronta e consultável por SQL. Próximo: **`05_analise_gold`**, com as
 # MAGIC respostas às duas perguntas do case.
