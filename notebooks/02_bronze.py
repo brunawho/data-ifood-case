@@ -27,10 +27,6 @@
 
 # COMMAND ----------
 
-dbutils.library.restartPython()
-
-# COMMAND ----------
-
 # MAGIC %run ./_setup
 
 # COMMAND ----------
@@ -52,7 +48,6 @@ mostrar_configuracao()
 
 from src.transform.bronze import build_bronze
 
-#PERIODOS = ("2023-01",)  # troque por config.PERIODS após validar
 PERIODOS = config.PERIODS
 
 contagens = build_bronze(spark, PERIODOS)

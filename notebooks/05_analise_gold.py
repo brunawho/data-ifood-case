@@ -18,10 +18,6 @@
 
 # COMMAND ----------
 
-dbutils.library.restartPython()
-
-# COMMAND ----------
-
 # MAGIC %run ./_setup
 
 # COMMAND ----------
