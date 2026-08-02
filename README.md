@@ -114,7 +114,7 @@ temporal (104) e corrida com duração não-positiva (6.180). Tudo o mais é
 preservado e **sinalizado** em colunas `flag_*`.
 
 O caso mais relevante são os 143.792 lançamentos com `total_amount` ≤ 0 na
-silver. A interpretação usual é que sejam estornos e ajustes contábeis, mas o
+silver. A interpretação usual é que sejam reversões e ajustes contábeis, mas o
 dataset não traz campo que identifique reversão nem chave que permita parear um
 lançamento negativo com a corrida que ele corrigiria: é hipótese de negócio, não
 fato observado. Por isso são preservados e sinalizados como
@@ -135,11 +135,16 @@ compara o tamanho com a origem antes de baixar; a bronze usa `replaceWhere` por
 partição. O notebook `02_bronze` inclui a consulta que prova a propriedade:
 executar a carga duas vezes não produz partição com dois lotes de ingestão.
 
-**A silver é reconstruída por completo, e isso é intencional.** Como a silver é
+**A silver é reconstruída por completo, por decisão de escopo.** Como a silver é
 particionada pela data real da corrida e a bronze pelo arquivo de origem, uma
-partição da bronze alimenta várias da silver. Não há como recarregar um mês
-isolado com garantia de completude sem varrer toda a bronze. Um "incremental"
-aqui seria uma reconstrução total com passos extras e risco de inconsistência.
+corrida de março pode estar em qualquer arquivo: qualquer estratégia incremental
+precisaria ler toda a bronze para localizar as linhas de uma competência.
+
+A carga incremental continua viável — bastaria identificar as competências
+afetadas e sobrescrever apenas essas partições com `replaceWhere`, economizando
+na escrita. Com 16 milhões de registros a reconstrução leva segundos, e a versão
+simples é mais previsível e mais fácil de auditar. Em produção, com volume
+maior, a escrita seletiva compensaria.
 
 **Lógica em módulos, não em notebooks.** Os notebooks apenas orquestram e
 validam; toda regra vive em `src/`, versionada, revisável em *pull request* e
@@ -177,7 +182,7 @@ grandeza. Ambas são entregues:
 
 A resposta em negrito é a **literal**: todos os registros da camada de consumo.
 A coluna à direita exclui os 143.792 lançamentos com `total_amount` ≤ 0 e
-depende da hipótese de que sejam estornos, que os dados não comprovam. É
+depende da hipótese de que sejam reversões, que os dados não comprovam. É
 análise de sensibilidade, não a resposta.
 
 ### Pergunta 2 — média de passageiros por hora (maio/2023)

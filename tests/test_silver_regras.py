@@ -242,3 +242,35 @@ def test_nenhum_registro_se_perde_na_classificacao(spark):
     descartados = df.filter(F.col("motivo_descarte").isNotNull()).count()
     assert validos + descartados == len(linhas)
     assert descartados == 2
+
+
+# --------------------------------------------------------------------------
+# Contrato de schema da bronze
+# --------------------------------------------------------------------------
+def test_coluna_obrigatoria_ausente_interrompe_a_ingestao(spark, tmp_path):
+    """As cinco colunas exigidas pelo case não podem virar NULL em silêncio.
+
+    Preenchê-las com NULL produziria uma camada de consumo inutilizável sem
+    nenhum sinal de erro. Colunas opcionais continuam sendo aceitas ausentes.
+    """
+    from src import config
+    from src.transform.bronze import read_landing
+
+    caminho = str(tmp_path / "sem_total_amount.parquet")
+    (
+        spark.createDataFrame(
+            [(1, dt.datetime(2023, 3, 1, 10, 0), dt.datetime(2023, 3, 1, 10, 20), 1)],
+            "VendorID int, tpep_pickup_datetime timestamp_ntz, "
+            "tpep_dropoff_datetime timestamp_ntz, passenger_count int",
+        )
+        .write.mode("overwrite")
+        .parquet(caminho)
+    )
+
+    original = config.landing_file
+    config.landing_file = lambda period: caminho
+    try:
+        with pytest.raises(ValueError, match="total_amount"):
+            read_landing(spark, "2023-03")
+    finally:
+        config.landing_file = original

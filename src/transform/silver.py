@@ -7,8 +7,8 @@ suspeito mas não inválido é preservado e sinalizado em colunas `flag_*`, e o
 descartado vai para uma tabela de quarentena com o motivo.
 
 Sinalizar em vez de filtrar porque a silver precisa servir perguntas ainda não
-formuladas: remover os estornos aqui decidiria, por todos os futuros
-consumidores, que ninguém vai querer analisá-los. Decisões de métrica pertencem
+formuladas: remover os lançamentos não-positivos aqui decidiria, por todos os
+futuros consumidores, que ninguém vai querer analisá-los. Decisões de métrica pertencem
 à gold. Os volumes de cada anomalia estão em `docs/achados-eda.md`.
 
 Uso:
@@ -29,7 +29,10 @@ logger = logging.getLogger(__name__)
 
 PARTITION_COLUMN = "pickup_year_month"
 
-# Fornecedores documentados no dicionário de dados da TLC para 2023.
+# Fornecedores presentes no dicionário de dados da TLC consultado para os
+# arquivos de 2023 (`data_dictionary_trip_records_yellow.pdf`, versão vigente na
+# data desta análise). O domínio pode evoluir: valores fora desta lista são
+# tratados como anomalia a investigar, não como registro inválido.
 KNOWN_VENDORS = (1, 2)
 
 # 4 passageiros em sedan, 5 em minivan autorizada, mais criança de colo. Acima
@@ -98,15 +101,18 @@ def classify(df: DataFrame) -> DataFrame:
 def build_silver(spark: SparkSession) -> dict[str, int]:
     """Reconstrói silver e quarentena a partir da bronze completa.
 
-    A reconstrução total é intencional. A silver é particionada pela data real
-    da corrida e a bronze pelo arquivo de origem, e a EDA mostrou que essas
-    chaves não se correspondem: uma partição da bronze alimenta várias da
-    silver. Recarregar um mês isolado com garantia de completude exigiria
-    varrer toda a bronze de qualquer forma, então o "incremental" seria uma
-    reconstrução total com passos extras e risco de inconsistência.
+    A reconstrução total é decisão de escopo, não necessidade técnica. A silver
+    é particionada pela data real da corrida e a bronze pelo arquivo de origem,
+    e essas chaves não se correspondem: uma corrida de março pode estar em
+    qualquer arquivo. Qualquer estratégia incremental precisaria, portanto, ler
+    toda a bronze para localizar as linhas de uma competência.
 
-    Em volume maior a alternativa seria MERGE por chave de negócio, que esta
-    base não possui.
+    A carga incremental continua viável: bastaria identificar as competências
+    afetadas e sobrescrever apenas essas partições com `replaceWhere`. O ganho
+    estaria na escrita, não na leitura. Com 16 milhões de registros a
+    reconstrução leva segundos, e a versão simples é mais previsível e mais
+    fácil de auditar — em produção, com volume maior, a escrita seletiva
+    passaria a compensar.
     """
     ensure_namespaces(spark)
 

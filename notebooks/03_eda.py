@@ -88,7 +88,7 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ### 1.2 Duração da corrida
 # MAGIC
-# MAGIC Corrida com *dropoff* anterior ao *pickup* tem duração negativa, é
+# MAGIC Corrida com *dropoff* anterior ao *pickup* tem duração negativa — é
 # MAGIC impossível. Duração zero e durações absurdas também merecem atenção.
 
 # COMMAND ----------
@@ -129,7 +129,7 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ### 2.1 Valores não-positivos
 # MAGIC
-# MAGIC Valores negativos nesta base costumam ser **estornos e ajustes contábeis**:
+# MAGIC A interpretação usual é que sejam **reversões e ajustes contábeis**:
 # MAGIC a TLC registra a correção como uma linha de valor negativo, e não removendo
 # MAGIC a corrida original. Não são erro de leitura, e sim semântica do dado.
 
@@ -194,7 +194,7 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC Se as três médias forem próximas, os extremos não distorcem o resultado e o
 # MAGIC tratamento pode ser conservador. Se divergirem, a escolha do filtro precisa
-# MAGIC ser justificada com cuidado e documentada, porque muda a resposta final.
+# MAGIC ser justificada com cuidado — e documentada, porque muda a resposta final.
 
 # COMMAND ----------
 
@@ -232,7 +232,7 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ### 3.1 O impacto na resposta da pergunta 2
 # MAGIC
-# MAGIC Comparação direta entre os tratamentos possíveis, restrita a maio, que é
+# MAGIC Comparação direta entre os tratamentos possíveis, restrita a maio — que é
 # MAGIC o escopo da pergunta.
 
 # COMMAND ----------
@@ -314,9 +314,10 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ### 5.1 `VendorID`: domínio esperado
 # MAGIC
-# MAGIC O dicionário de dados da TLC define apenas dois fornecedores: `1` (Creative
-# MAGIC Mobile Technologies) e `2` (VeriFone). Qualquer outro valor está fora do
-# MAGIC domínio documentado.
+# MAGIC O dicionário de dados da TLC consultado para os arquivos de 2023 lista
+# MAGIC apenas `1` (Creative Mobile Technologies) e `2` (VeriFone). Outros valores
+# MAGIC não constam nessa versão, o que não os torna inválidos: o domínio pode ter
+# MAGIC evoluído. São tratados como anomalia a investigar.
 
 # COMMAND ----------
 
@@ -384,7 +385,7 @@ mostrar_configuracao()
 # MAGIC | 1 | Corridas fora de jan–mai/2023 | 104 | 0,00064% | Descartar |
 # MAGIC | 2 | Duração ≤ 0 | 6.181 | 0,0382% | Descartar |
 # MAGIC | 3 | Duração acima de 24h | 94 | 0,0006% | Manter, sinalizar |
-# MAGIC | 4 | `total_amount` negativo (estorno) | 141.407 | 0,8736% | Manter, sinalizar |
+# MAGIC | 4 | `total_amount` negativo | 141.407 | 0,8736% | Manter, sinalizar |
 # MAGIC | 5 | `total_amount` zero | 2.739 | 0,0169% | Manter, sinalizar |
 # MAGIC | 6 | `total_amount` extremo (acima de US$ 1.000) | 11 | 0,00007% | Manter, sem corte |
 # MAGIC | 7 | `passenger_count` nulo | 428.665 | 2,6483% | Manter; `AVG` ignora |
@@ -398,7 +399,7 @@ mostrar_configuracao()
 # MAGIC apenas pelo primeiro critério.
 # MAGIC
 # MAGIC A silver preserva a granularidade da corrida e descarta apenas o
-# MAGIC comprovadamente inválido. Decisões de métrica, como excluir estorno de uma
+# MAGIC comprovadamente inválido. Decisões de métrica, como excluir `total_amount <= 0` de uma
 # MAGIC média, pertencem à gold: assim a camada de consumo continua servindo
 # MAGIC perguntas que ainda não foram feitas.
 # MAGIC

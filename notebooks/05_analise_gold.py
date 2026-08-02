@@ -30,7 +30,7 @@ mostrar_configuracao()
 # MAGIC ## Materialização da gold
 # MAGIC
 # MAGIC As agregações são persistidas como tabelas Delta. As decisões de métrica
-# MAGIC ficam aqui, e não na silver: excluir estornos de uma média é escolha
+# MAGIC ficam aqui, e não na silver: excluir registros com `total_amount <= 0`
 # MAGIC analítica, não correção de qualidade.
 
 # COMMAND ----------
@@ -60,10 +60,10 @@ print(f"gold.yellow_trips_hourly_passengers  : {contagens['hourly']} linhas")
 # MAGIC Ambas são respondidas abaixo. Escolher uma silenciosamente esconderia uma
 # MAGIC decisão que altera o resultado por um fator de milhões.
 # MAGIC
-# MAGIC ## A decisão sobre estornos
+# MAGIC ## A decisão sobre lançamentos não-positivos
 # MAGIC
 # MAGIC A camada silver contém 143.792 lançamentos com `total_amount` ≤ 0. A
-# MAGIC interpretação usual é que sejam estornos e ajustes contábeis registrados
+# MAGIC interpretação usual é que sejam reversões e ajustes contábeis registrados
 # MAGIC pela TLC como linhas negativas, mas **o dataset não comprova isso**: não há
 # MAGIC campo que identifique reversão nem chave que permita parear um lançamento
 # MAGIC negativo com a corrida que ele corrigiria.
@@ -79,14 +79,16 @@ print(f"gold.yellow_trips_hourly_passengers  : {contagens['hourly']} linhas")
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC -- A gold guarda os valores sem arredondamento, para que a consolidação do
+# MAGIC -- período não propague erro de truncamento. O ROUND fica na apresentação.
 # MAGIC SELECT
-# MAGIC   pickup_year_month                AS competencia,
+# MAGIC   pickup_year_month                             AS competencia,
 # MAGIC   corridas,
-# MAGIC   ticket_medio_bruto,
-# MAGIC   ticket_medio_sem_estornos,
-# MAGIC   faturamento_bruto,
-# MAGIC   faturamento_sem_estornos,
-# MAGIC   estornos
+# MAGIC   ROUND(ticket_medio_bruto, 2)                  AS ticket_medio_bruto,
+# MAGIC   ROUND(ticket_medio_sem_nao_positivos, 2)      AS ticket_medio_sem_nao_positivos,
+# MAGIC   ROUND(faturamento_bruto, 2)                   AS faturamento_bruto,
+# MAGIC   ROUND(faturamento_sem_nao_positivos, 2)       AS faturamento_sem_nao_positivos,
+# MAGIC   lancamentos_nao_positivos
 # MAGIC FROM workspace.gold.yellow_trips_monthly
 # MAGIC ORDER BY competencia
 
@@ -108,14 +110,14 @@ resposta_1 = (
         F.count("*").alias("corridas"),
         F.round(F.avg("total_amount"), 2).alias("ticket_medio_bruto"),
         F.round(F.avg(F.when(positivo, F.col("total_amount"))), 2).alias(
-            "ticket_medio_sem_estornos"
+            "ticket_medio_sem_nao_positivos"
         ),
         F.round(F.sum("total_amount"), 2).alias("faturamento_bruto"),
         F.round(F.sum(F.when(positivo, F.col("total_amount"))), 2).alias(
-            "faturamento_sem_estornos"
+            "faturamento_sem_nao_positivos"
         ),
         F.sum(F.when(F.col("flag_valor_nao_positivo"), 1).otherwise(0)).alias(
-            "estornos"
+            "lancamentos_nao_positivos"
         ),
     )
     .withColumnRenamed("pickup_year_month", "competencia")
@@ -136,10 +138,16 @@ display(resposta_1)
 
 # COMMAND ----------
 
+# Arredonda com a mesma precisão da versão PySpark: a gold guarda valores
+# brutos, então a comparação precisa aplicar o mesmo tratamento nos dois lados.
 resposta_1_sql = spark.sql("""
-    SELECT pickup_year_month AS competencia, corridas,
-           ticket_medio_bruto, ticket_medio_sem_estornos,
-           faturamento_bruto, faturamento_sem_estornos, estornos
+    SELECT pickup_year_month                        AS competencia,
+           corridas,
+           ROUND(ticket_medio_bruto, 2)             AS ticket_medio_bruto,
+           ROUND(ticket_medio_sem_nao_positivos, 2) AS ticket_medio_sem_nao_positivos,
+           ROUND(faturamento_bruto, 2)              AS faturamento_bruto,
+           ROUND(faturamento_sem_nao_positivos, 2)  AS faturamento_sem_nao_positivos,
+           lancamentos_nao_positivos
     FROM workspace.gold.yellow_trips_monthly
 """)
 
@@ -182,12 +190,12 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 # MAGIC -- Leitura (a): ticket medio por corrida.
 # MAGIC -- `resposta_*` sao a resposta oficial (todos os registros). As colunas
 # MAGIC -- `sensib_*` excluem os lancamentos nao-positivos e dependem da hipotese
-# MAGIC -- de que sejam estornos, que os dados nao comprovam.
+# MAGIC -- de que sejam lancamentos_nao_positivos, que os dados nao comprovam.
 # MAGIC SELECT
 # MAGIC   ROUND(AVG(ticket_medio_bruto), 2)                                 AS resposta_media_simples,
 # MAGIC   ROUND(SUM(faturamento_bruto) / SUM(corridas), 2)                  AS resposta_media_ponderada,
-# MAGIC   ROUND(AVG(ticket_medio_sem_estornos), 2)                          AS sensib_media_simples,
-# MAGIC   ROUND(SUM(faturamento_sem_estornos) / SUM(corridas_faturadas), 2) AS sensib_media_ponderada
+# MAGIC   ROUND(AVG(ticket_medio_sem_nao_positivos), 2)                          AS sensib_media_simples,
+# MAGIC   ROUND(SUM(faturamento_sem_nao_positivos) / SUM(corridas_faturadas), 2) AS sensib_media_ponderada
 # MAGIC FROM workspace.gold.yellow_trips_monthly
 
 # COMMAND ----------
@@ -199,7 +207,7 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 # MAGIC   ROUND(MIN(faturamento_bruto), 2)        AS menor_mes,
 # MAGIC   ROUND(MAX(faturamento_bruto), 2)        AS maior_mes,
 # MAGIC   ROUND(SUM(faturamento_bruto), 2)        AS total_no_periodo,
-# MAGIC   ROUND(AVG(faturamento_sem_estornos), 2) AS sensib_faturamento_medio
+# MAGIC   ROUND(AVG(faturamento_sem_nao_positivos), 2) AS sensib_faturamento_medio
 # MAGIC FROM workspace.gold.yellow_trips_monthly
 
 # COMMAND ----------
@@ -228,9 +236,9 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 # MAGIC SELECT
 # MAGIC   LPAD(pickup_hour, 2, '0') || 'h'  AS hora,
 # MAGIC   corridas,
-# MAGIC   media_passageiros,
-# MAGIC   media_nulo_como_zero,
-# MAGIC   media_apenas_positivos,
+# MAGIC   ROUND(media_passageiros, 4)      AS media_passageiros,
+# MAGIC   ROUND(media_nulo_como_zero, 4)   AS media_nulo_como_zero,
+# MAGIC   ROUND(media_apenas_positivos, 4) AS media_apenas_positivos,
 # MAGIC   sem_registro
 # MAGIC FROM workspace.gold.yellow_trips_hourly_passengers
 # MAGIC ORDER BY pickup_hour
@@ -271,8 +279,11 @@ display(resposta_2)
 # COMMAND ----------
 
 resposta_2_sql = spark.sql("""
-    SELECT pickup_hour, corridas, media_passageiros,
-           media_nulo_como_zero, media_apenas_positivos, sem_registro
+    SELECT pickup_hour, corridas,
+           ROUND(media_passageiros, 4)      AS media_passageiros,
+           ROUND(media_nulo_como_zero, 4)   AS media_nulo_como_zero,
+           ROUND(media_apenas_positivos, 4) AS media_apenas_positivos,
+           sem_registro
     FROM workspace.gold.yellow_trips_hourly_passengers
 """)
 
@@ -294,7 +305,7 @@ assert divergencias_2 == 0, "As duas implementações produzem resultados difere
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SELECT pickup_hour, media_passageiros
+# MAGIC SELECT pickup_hour, ROUND(media_passageiros, 4) AS media_passageiros
 # MAGIC FROM workspace.gold.yellow_trips_hourly_passengers
 # MAGIC ORDER BY pickup_hour
 

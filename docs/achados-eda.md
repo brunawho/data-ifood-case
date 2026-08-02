@@ -67,12 +67,12 @@ as duas categorias. O critério correto é a **janela do escopo**, não o arquiv
 | **Não-positivos** | **144.146** | **0,8905%** |
 | Soma dos negativos | −US$ 3.488.304,77 | |
 
-Os valores negativos **não são corrupção**. A TLC registra estornos e ajustes
+A interpretação usual é que **não sejam corrupção**: a TLC registraria reversões e ajustes
 contábeis como lançamentos negativos, mantendo a corrida original na base. São
 registros legítimos com semântica própria.
 
 > **Decisão:** manter na silver, excluir da métrica na gold. A silver é camada de
-> consumo genérica, descartar estornos ali destruiria informação real e
+> consumo genérica, descartar esses registros ali destruiria informação e
 > impediria análises contábeis legítimas. Já a média de valor por corrida não
 > deve somar lançamentos de correção.
 
@@ -105,7 +105,7 @@ casa decimal. Onze corridas extremas em 16,2 milhões não movem a média.
 
 > **Decisão:** **não aplicar corte de outlier.** Um teto arbitrário seria
 > intervenção sem efeito mensurável, com o custo de descartar dados possivelmente
-> válidos. A diferença relevante (27,84 → 28,31, cerca de 1,7%) vem dos estornos,
+> válidos. A diferença relevante (27,84 → 28,31, cerca de 1,7%) vem dos não-positivos,
 > não dos extremos.
 
 *Ressalva metodológica:* `percentile_approx` no percentil 0,9999 retornou valor
@@ -191,7 +191,7 @@ Nenhum nulo nas colunas críticas:
 | `total_amount` | 0 |
 | `passenger_count` | 428.665 |
 
-### `VendorID` fora do domínio documentado
+### `VendorID` fora do dicionário consultado
 
 | VendorID | Registros |
 |---|---|
@@ -199,13 +199,18 @@ Nenhum nulo nas colunas críticas:
 | 1 | 4.372.609 |
 | **6** | **3.983** |
 
-O dicionário de dados da TLC para 2023 documenta apenas os fornecedores 1
-(Creative Mobile Technologies) e 2 (VeriFone). O valor 6 aparece em 3.983
-registros sem correspondência na documentação.
+O dicionário de dados da TLC consultado para os arquivos de 2023 lista apenas os
+fornecedores 1 (Creative Mobile Technologies) e 2 (VeriFone). O valor 6 aparece
+em 3.983 registros sem correspondência nessa versão.
 
-> **Decisão:** manter e sinalizar. Valor fora do domínio documentado não implica
-> corrida inválida, as demais colunas desses registros são consistentes. Marcar
-> a inconsistência preserva a informação e a torna visível ao consumidor.
+**Isso não significa que o valor seja inválido.** O domínio pode ter evoluído
+sem que a versão consultada refletisse a mudança, e não há como distinguir, com
+o material disponível, um código novo de um erro de gravação.
+
+> **Decisão:** manter e sinalizar como anomalia a investigar. Ausência no
+> dicionário consultado não implica corrida inválida, e as demais colunas desses
+> registros são consistentes. Sinalizar preserva a informação e a torna visível a
+> quem consome, sem afirmar que o valor está errado.
 
 #### Achado adicional: o fornecedor 6 concentra desproporcionalmente os descartes
 
@@ -222,10 +227,13 @@ da base.
 Em taxa: **19,4%** dos registros do fornecedor 6 foram descartados por invalidez,
 contra **0,039%** da base geral, cerca de 500 vezes mais.
 
-O valor não documentado, portanto, não é apenas uma lacuna de dicionário: é
-indicador de uma fonte com qualidade de dados sensivelmente inferior. Isso
-reforça a decisão de sinalizar em vez de ignorar, consumidores que exijam alta
-confiabilidade podem excluir esses registros de forma consciente.
+A lacuna de dicionário, portanto, coincide com qualidade de dados
+mensuravelmente inferior. Isso reforça a decisão de sinalizar em vez de ignorar:
+quem exija alta confiabilidade pode excluir esses registros conscientemente.
+
+Aprofundar exigiria cruzar `VendorID = 6` com `payment_type`, horários e padrões
+de valor, para verificar se corresponde a um perfil operacional distinto — como
+viagens anuladas — ou a falha de gravação. Não foi feito neste case.
 
 ---
 
@@ -267,7 +275,7 @@ pondera pelo volume real.
 | 1 | Corridas fora de jan–mai/2023 | 104 | 0,00064% | Descartar |
 | 2 | Duração ≤ 0 | 6.181 | 0,0382% | Descartar |
 | 3 | Duração acima de 24h | 94 | 0,0006% | Manter, sinalizar |
-| 4 | `total_amount` negativo (estorno) | 141.407 | 0,8736% | Manter, sinalizar; excluir na gold |
+| 4 | `total_amount` negativo | 141.407 | 0,8736% | Manter, sinalizar |
 | 5 | `total_amount` zero | 2.739 | 0,0169% | Manter, sinalizar; excluir na gold |
 | 6 | `total_amount` extremo | 11 | 0,00007% | Manter — sem efeito mensurável |
 | 7 | `passenger_count` nulo | 428.665 | 2,6483% | Manter; `AVG` ignora nativamente |
@@ -291,6 +299,6 @@ A silver descarta **apenas o que é comprovadamente inválido**, corrida fora do
 escopo temporal e corrida com duração não-positiva. Todo o resto é preservado
 com colunas de sinalização (`flag_*`), deixando a decisão para o consumidor.
 
-Decisões de métrica, excluir estornos de uma média, por exemplo, pertencem à
+Decisões de métrica, como excluir `total_amount <= 0` de uma média, pertencem à
 gold. Assim a camada de consumo continua servindo perguntas que ainda não foram
 formuladas, em vez de responder apenas às duas do case.

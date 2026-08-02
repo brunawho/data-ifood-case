@@ -2,8 +2,8 @@
 Etapa 5: silver -> gold.
 
 Materializa as respostas às duas perguntas do case. As decisões de métrica
-ficam aqui, e não na silver: excluir estornos de uma média é escolha analítica,
-não correção de qualidade.
+ficam aqui, e não na silver: excluir registros com `total_amount <= 0` de uma
+média é escolha analítica, não correção de qualidade.
 
 As agregações usam `pickup_year_month`, derivado da data real da corrida. Cada
 competência recebe corridas de dois ou três arquivos distintos, então agrupar
@@ -35,6 +35,10 @@ def monthly_revenue(spark: SparkSession) -> DataFrame:
     O enunciado admite duas leituras separadas por seis ordens de grandeza:
     (a) ticket médio por corrida e (b) faturamento total da frota no mês. A
     tabela entrega as duas, cada uma com e sem os lançamentos não-positivos.
+
+    A resposta oficial é a que inclui todos os registros; a versão filtrada é
+    análise de sensibilidade, e depende da hipótese de que os valores
+    não-positivos sejam reversões, que os dados não comprovam.
     """
     silver = spark.table(config.TABLE_SILVER)
     positivo = ~F.col("flag_valor_nao_positivo")
@@ -45,20 +49,18 @@ def monthly_revenue(spark: SparkSession) -> DataFrame:
             F.count("*").alias("corridas"),
             F.sum(F.when(positivo, 1).otherwise(0)).alias("corridas_faturadas"),
             # Leitura (a): ticket médio por corrida.
-            F.round(F.avg("total_amount"), 2).alias("ticket_medio_bruto"),
-            F.round(F.avg(F.when(positivo, F.col("total_amount"))), 2).alias(
-                "ticket_medio_sem_estornos"
+            F.avg("total_amount").alias("ticket_medio_bruto"),
+            F.avg(F.when(positivo, F.col("total_amount"))).alias(
+                "ticket_medio_sem_nao_positivos"
             ),
             # Leitura (b): faturamento da frota no mês.
-            F.round(F.sum("total_amount"), 2).alias("faturamento_bruto"),
-            F.round(F.sum(F.when(positivo, F.col("total_amount"))), 2).alias(
-                "faturamento_sem_estornos"
+            F.sum("total_amount").alias("faturamento_bruto"),
+            F.sum(F.when(positivo, F.col("total_amount"))).alias(
+                "faturamento_sem_nao_positivos"
             ),
-            F.round(F.percentile_approx("total_amount", 0.5), 2).alias(
-                "mediana_total_amount"
-            ),
+            F.percentile_approx("total_amount", 0.5).alias("mediana_total_amount"),
             F.sum(F.when(F.col("flag_valor_nao_positivo"), 1).otherwise(0)).alias(
-                "estornos"
+                "lancamentos_nao_positivos"
             ),
         )
         .orderBy("pickup_year_month")
@@ -79,13 +81,11 @@ def hourly_passengers(spark: SparkSession, period: str = "2023-05") -> DataFrame
         .groupBy("pickup_hour")
         .agg(
             F.count("*").alias("corridas"),
-            F.round(F.avg("passenger_count"), 4).alias("media_passageiros"),
-            F.round(F.avg(F.coalesce("passenger_count", F.lit(0))), 4).alias(
-                "media_nulo_como_zero"
+            F.avg("passenger_count").alias("media_passageiros"),
+            F.avg(F.coalesce("passenger_count", F.lit(0))).alias("media_nulo_como_zero"),
+            F.avg(F.when(F.col("passenger_count") > 0, F.col("passenger_count"))).alias(
+                "media_apenas_positivos"
             ),
-            F.round(
-                F.avg(F.when(F.col("passenger_count") > 0, F.col("passenger_count"))), 4
-            ).alias("media_apenas_positivos"),
             F.sum(F.when(F.col("flag_passageiros_ausente"), 1).otherwise(0)).alias(
                 "sem_registro"
             ),

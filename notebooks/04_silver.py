@@ -16,7 +16,7 @@
 # MAGIC | Sinalizar | `total_amount` ≤ 0 | 143.792 |
 # MAGIC | Sinalizar | duração acima de 24h | 94 |
 # MAGIC | Sinalizar | `passenger_count` nulo / zero / acima de 6 | 700.902 |
-# MAGIC | Sinalizar | `VendorID` fora do domínio documentado | 3.209 |
+# MAGIC | Sinalizar | `VendorID` fora do dicionário consultado | 3.209 |
 # MAGIC
 # MAGIC Descarta apenas o comprovadamente inválido. O suspeito é preservado com
 # MAGIC sinalização, porque a silver precisa servir perguntas ainda não formuladas
@@ -40,11 +40,11 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ## Construção
 # MAGIC
-# MAGIC A silver é reconstruída por completo a cada execução. A silver é
-# MAGIC particionada pela data real da corrida e a bronze pelo arquivo de origem,
-# MAGIC e a EDA provou que essas chaves não se correspondem: recarregar um mês
-# MAGIC isolado exigiria varrer toda a bronze de qualquer forma. Detalhes na
-# MAGIC *docstring* de `build_silver`.
+# MAGIC A silver é reconstruída por completo a cada execução, por decisão de
+# MAGIC escopo. Como as chaves de partição das duas camadas não se correspondem,
+# MAGIC qualquer estratégia incremental precisaria ler toda a bronze de qualquer
+# MAGIC forma; o ganho estaria só na escrita. Com este volume, a versão simples é
+# MAGIC mais previsível. Detalhes na *docstring* de `build_silver`.
 
 # COMMAND ----------
 

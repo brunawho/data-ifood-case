@@ -84,8 +84,18 @@ def read_landing(spark: SparkSession, period: str) -> DataFrame:
         else:
             projection.append(F.col(f"`{source}`").cast(target_type).alias(column))
 
+    # As cinco colunas exigidas pelo case não podem faltar: preenchê-las com
+    # NULL produziria uma camada de consumo silenciosamente inutilizável. As
+    # demais são opcionais e viram NULL com aviso.
+    obrigatorias_ausentes = sorted(set(config.REQUIRED_COLUMNS) & set(missing))
+    if obrigatorias_ausentes:
+        raise ValueError(
+            f"[{period}] colunas obrigatórias ausentes na origem: "
+            f"{obrigatorias_ausentes}. Verifique se o schema da TLC mudou."
+        )
+
     if missing:
-        logger.warning("[%s] colunas ausentes na origem, preenchidas com NULL: %s",
+        logger.warning("[%s] colunas opcionais ausentes, preenchidas com NULL: %s",
                        period, ", ".join(missing))
 
     unexpected = set(available) - {

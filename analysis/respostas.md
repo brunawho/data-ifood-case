@@ -36,7 +36,7 @@ descarte — escopo temporal ou duração não-positiva — e por isso não cheg
 silver. Os números desta seção referem-se sempre à silver, que é a camada de
 consumo.
 
-**A interpretação usual** é que sejam estornos e ajustes contábeis: a TLC
+**A interpretação usual** é que sejam reversões e ajustes contábeis: a TLC
 registraria a correção como linha de valor negativo, mantendo a corrida
 original. **Esta é uma hipótese de negócio, e os dados não a comprovam.** O
 dataset não traz campo que identifique reversão, e não há chave de corrida que
@@ -69,7 +69,7 @@ não-positivos são a análise de sensibilidade.
 | Média simples das cinco competências | **US$ 27,79** | US$ 28,26 |
 | Média ponderada pelo volume de corridas | **US$ 27,84** | US$ 28,30 |
 
-A hipótese de que os não-positivos são estornos desloca a resposta em cerca de
+Excluir os registros com `total_amount <= 0` desloca a resposta em cerca de
 1,7%. Não é diferença que mude uma conclusão de negócio, mas é decisão que
 precisa estar declarada.
 
