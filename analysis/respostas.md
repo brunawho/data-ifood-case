@@ -83,9 +83,10 @@ que as competências são homogêneas entre si.
 
 | Métrica | Todos os registros | Sem não-positivos |
 |---|---|---|
-| **Faturamento médio mensal** | **US$ 90.120.269,65** | US$ 90.780.494,37 |
+| **Faturamento médio mensal** | **US$ 90.082.885,70** | US$ 90.780.494,37 |
 | Menor mês (fevereiro) | US$ 78.341.799,94 | US$ 78.935.054,89 |
 | Maior mês (maio) | US$ 101.730.574,60 | US$ 102.538.638,06 |
+| Total no período | US$ 450.414.428,52 | US$ 453.902.471,86 |
 
 ### Observação: o crescimento no período
 
@@ -94,7 +95,7 @@ somados, e vale distingui-los:
 
 - **Volume**, 3,51 milhões de corridas em maio contra 2,91 milhões em fevereiro
   (+20,6%). Fevereiro tem 28 dias, e o inverno de Nova York reduz a circulação.
-- **Ticket**, US$ 29,46 contra US$ 27,34 (+7,8%). O valor médio da corrida
+- **Ticket**, US$ 28,96 contra US$ 26,90 (+7,7%). O valor médio da corrida
   também subiu, o que não se explica por sazonalidade de calendário.
 
 O ticket médio cresce de forma monotônica ao longo dos cinco meses, sugerindo

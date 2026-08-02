@@ -257,6 +257,14 @@ real da corrida:
 | 2023-05 | 3.513.645 | US$ 28,96 | US$ 101.765.282,92 |
 | **Média dos meses** | **3.237.256** | **US$ 27,79** | **US$ 90.120.269,65** |
 
+> **Estes números são da bronze, não da resposta final.** Servem para dimensionar
+> a ambiguidade do enunciado nesta etapa exploratória. A resposta entregue é
+> calculada sobre a silver, após o descarte dos 6.284 registros inválidos, e está
+> em [`analysis/respostas.md`](../analysis/respostas.md): ticket médio de
+> US$ 27,79 e faturamento médio mensal de US$ 90.082.885,70. O ticket coincide
+> por arredondamento; o faturamento não, porque os registros descartados
+> contribuíam com valor.
+
 ### Média simples e média ponderada
 
 A média das cinco médias mensais é **US$ 27,79**, enquanto a média sobre todas as

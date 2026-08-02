@@ -178,7 +178,7 @@ grandeza. Ambas são entregues:
 | Leitura | Resposta | Sem lançamentos não-positivos |
 |---|---|---|
 | **(a)** Ticket médio por corrida | **US$ 27,79** (simples) / **US$ 27,84** (ponderada) | US$ 28,26 / US$ 28,30 |
-| **(b)** Faturamento mensal da frota | **US$ 90.120.269,65** | US$ 90.780.494,37 |
+| **(b)** Faturamento mensal da frota | **US$ 90.082.885,70** | US$ 90.780.494,37 |
 
 A resposta em negrito é a **literal**: todos os registros da camada de consumo.
 A coluna à direita exclui os 143.792 lançamentos com `total_amount` ≤ 0 e
