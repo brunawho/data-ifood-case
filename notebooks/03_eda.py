@@ -88,7 +88,7 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ### 1.2 Duração da corrida
 # MAGIC
-# MAGIC Corrida com *dropoff* anterior ao *pickup* tem duração negativa — é
+# MAGIC Corrida com *dropoff* anterior ao *pickup* tem duração negativa, é
 # MAGIC impossível. Duração zero e durações absurdas também merecem atenção.
 
 # COMMAND ----------
@@ -194,7 +194,7 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC Se as três médias forem próximas, os extremos não distorcem o resultado e o
 # MAGIC tratamento pode ser conservador. Se divergirem, a escolha do filtro precisa
-# MAGIC ser justificada com cuidado — e documentada, porque muda a resposta final.
+# MAGIC ser justificada com cuidado e documentada, porque muda a resposta final.
 
 # COMMAND ----------
 
@@ -232,7 +232,7 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ### 3.1 O impacto na resposta da pergunta 2
 # MAGIC
-# MAGIC Comparação direta entre os tratamentos possíveis, restrita a maio — que é
+# MAGIC Comparação direta entre os tratamentos possíveis, restrita a maio, que é
 # MAGIC o escopo da pergunta.
 
 # COMMAND ----------
