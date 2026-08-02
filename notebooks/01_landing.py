@@ -26,6 +26,26 @@ mostrar_configuracao()
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Preparação do catálogo
+# MAGIC
+# MAGIC Cria os schemas e o Volume do Unity Catalog, se ainda não existirem. É
+# MAGIC idempotente (`CREATE ... IF NOT EXISTS`), então rodar em um workspace já
+# MAGIC preparado não tem efeito.
+# MAGIC
+# MAGIC Necessário aqui porque a landing grava direto no Volume: sem ele, o
+# MAGIC download falha no primeiro comando.
+
+# COMMAND ----------
+
+from src.utils.spark import ensure_namespaces
+
+ensure_namespaces(spark)
+
+display(spark.sql(f"SHOW SCHEMAS IN {config.CATALOG}"))
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Download
 # MAGIC
 # MAGIC Cerca de 45 MiB por mês, ~230 MiB no total.
@@ -93,7 +113,7 @@ display(spark.createDataFrame(manifest))
 # MAGIC ### 3. O arquivo é um Parquet legível?
 # MAGIC
 # MAGIC Tamanho correto não garante arquivo válido. Ler o schema é o teste mais
-# MAGIC barato de integridade e já antecipa o que a bronze vai encontrar.
+# MAGIC barato de integridade — e já antecipa o que a bronze vai encontrar.
 
 # COMMAND ----------
 

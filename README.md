@@ -196,9 +196,17 @@ Tabelas completas, decisões de tratamento e observações em
 01_landing  →  02_bronze  →  04_silver  →  05_analise_gold
 ```
 
-Schemas, volume e tabelas são criados pelo próprio pipeline, de forma
-idempotente. Nenhuma dependência precisa ser instalada: o runtime já provê
-PySpark, Delta e `requests`.
+**Nenhuma preparação manual é necessária.** Os schemas (`raw`, `bronze`,
+`silver`, `gold`), o Volume da landing e todas as tabelas são criados pelo
+próprio pipeline, com `CREATE ... IF NOT EXISTS`. O `01_landing` prepara o
+catálogo antes do download, então basta executar os notebooks na ordem.
+
+Nenhuma dependência precisa ser instalada: o runtime já provê PySpark, Delta e
+`requests`.
+
+O catálogo padrão é `workspace`, que existe em qualquer workspace do Free
+Edition. Para usar outro, defina `IFOOD_CATALOG` na primeira célula de
+`_setup.py`.
 
 O notebook `03_eda` é opcional: documenta a investigação que fundamentou as
 regras de limpeza. Fica fora de qualquer execução automatizada porque análise
