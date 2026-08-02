@@ -30,16 +30,18 @@ logger = logging.getLogger(__name__)
 PARTITION_COLUMN = "pickup_year_month"
 
 # Domínio esperado de VendorID para o escopo desta análise: 1 (Creative Mobile
-# Technologies) e 2 (VeriFone), conforme o dicionário de dados publicado pela
-# TLC em https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+# Technologies) e 2 (VeriFone), conforme o "Data Dictionary - Yellow Taxi Trip
+# Records" da NYC TLC, consultado em agosto de 2026 em
+# https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
 #
-# A lista não é uma afirmação de completude: o domínio pode ter evoluído sem que
-# a versão consultada refletisse. Valores fora dela são sinalizados como
-# anomalia a investigar, nunca descartados.
+# A lista não é afirmação de completude: o dicionário não é versionado por data,
+# e o domínio pode ter evoluído sem que a versão consultada refletisse. Valores
+# fora dela são sinalizados como anomalia a investigar, nunca descartados.
 EXPECTED_VENDORS = (1, 2)
 
-# 4 passageiros em sedan, 5 em minivan autorizada, mais criança de colo. Acima
-# de 6 não corresponde a nenhuma configuração legal em NY.
+# Limite regulamentar em Nova York: 4 passageiros em sedan, 5 em minivan
+# autorizada, mais criança de colo (mesma fonte do dicionário acima). Valores
+# acima são sinalizados, não descartados.
 MAX_PLAUSIBLE_PASSENGERS = 6
 
 # Implausível (taxímetro esquecido ligado), mas não impossível: sinaliza.

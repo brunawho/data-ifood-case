@@ -130,10 +130,15 @@ O dimensionamento de cada problema, com o número que o sustenta, está em
 
 ### Engenharia
 
-**Idempotência em todas as camadas, verificada empiricamente.** A landing
-compara o tamanho com a origem antes de baixar; a bronze usa `replaceWhere` por
-partição. O notebook `02_bronze` inclui a consulta que prova a propriedade:
-executar a carga duas vezes não produz partição com dois lotes de ingestão.
+**Reexecução idempotente por estratégia de escrita.** A landing compara o
+tamanho com a origem antes de baixar; a bronze usa `replaceWhere`, que substitui
+a partição inteira em vez de acrescentar.
+
+O notebook `02_bronze` verifica que, no cenário testado, reexecutar a carga
+substitui a partição em vez de criar um segundo lote. Isso não é prova de
+idempotência geral: não cobre duplicatas dentro do mesmo arquivo de origem nem
+republicação com o mesmo tamanho de bytes, casos que a estratégia atual não
+detecta.
 
 **A silver é reconstruída por completo, por decisão de escopo.** Como a silver é
 particionada pela data real da corrida e a bronze pelo arquivo de origem, uma
@@ -189,9 +194,10 @@ comprovam. É análise de sensibilidade, não a resposta.
 
 A média varia de **1,2348** (6h) a **1,4367** (2h), amplitude de 16,4%.
 
-O padrão tem três fases: ocupação alta na madrugada (uso social, grupos
-retornando juntos), vale no início da manhã (deslocamento individual para o
-trabalho) e recuperação progressiva ao longo do dia.
+O padrão tem três fases: ocupação alta na madrugada, vale no início da manhã e
+recuperação progressiva ao longo do dia. As colunas disponíveis registram
+ocupação e horário, não a finalidade da viagem, então qualquer explicação
+causal permanece hipótese.
 
 Tabelas completas, decisões de tratamento e observações em
 [`analysis/respostas.md`](analysis/respostas.md).

@@ -94,13 +94,15 @@ Maio faturou **29,9% mais que fevereiro**. O crescimento vem de dois efeitos
 somados, e vale distingui-los:
 
 - **Volume**, 3,51 milhões de corridas em maio contra 2,91 milhões em fevereiro
-  (+20,6%). Fevereiro tem 28 dias, e o inverno de Nova York reduz a circulação.
+  (+20,6%). Fevereiro tem 28 dias, e o menor volume também pode estar
+  relacionado a fatores sazonais, que exigiriam série histórica mais longa para
+  serem confirmados.
 - **Ticket**, US$ 28,96 contra US$ 26,90 (+7,7%). O valor médio da corrida
   também subiu, o que não se explica por sazonalidade de calendário.
 
-O ticket médio cresce de forma monotônica ao longo dos cinco meses, sugerindo
-tendência e não apenas variação sazonal. Confirmar exigiria uma série histórica
-mais longa que a do escopo deste case.
+O ticket médio cresce de forma monotônica ao longo dos cinco meses. Cinco
+observações não permitem distinguir tendência de variação sazonal; confirmar
+exigiria série histórica mais longa que a do escopo deste case.
 
 ---
 
@@ -178,13 +180,14 @@ os extremos.
 
 O padrão tem três fases bem definidas:
 
-- **Madrugada (0h–3h)**: a maior ocupação do dia. Compatível com vida noturna,
-  grupos retornando juntos de bares, restaurantes e eventos.
-- **Vale (5h–8h)**: a menor ocupação. Compatível com deslocamento individual
-  para o trabalho.
+- **Madrugada (0h–3h)**: a maior ocupação do dia.
+- **Vale (5h–8h)**: a menor ocupação.
 - **Recuperação progressiva (9h–23h)**: a média sobe de forma contínua ao longo
-  do dia, com platô à tarde e retomada da alta à noite, quando volta o uso
-  social.
+  do dia, com platô à tarde e nova alta à noite.
+
+Uma leitura possível associa a madrugada a deslocamentos em grupo e o início da
+manhã a deslocamentos individuais, mas isso é hipótese: a base registra ocupação
+e horário, não a finalidade da viagem.
 
 ### Observação: ocupação e volume são inversamente relacionados
 
@@ -197,8 +200,10 @@ As horas de maior ocupação são as de menor movimento:
 | Menor média de passageiros | 06h | 1,2348 (49.464 corridas) |
 | Menor volume de corridas | 04h | 18.018 corridas (1,3885) |
 
-Quando a cidade mais usa táxi, usa sozinha. O pico de demanda das 18h é
-individual e pendular; o de ocupação da madrugada é social e compartilhado.
+O padrão é compatível com maior presença de viagens individuais no horário de
+pico e de viagens compartilhadas na madrugada, mas as colunas disponíveis não
+informam o motivo do deslocamento. Confirmar a interpretação exigiria cruzamento
+com dia da semana, zonas de origem e destino e outras variáveis.
 
 ### Observação: qualidade do dado varia com a hora
 

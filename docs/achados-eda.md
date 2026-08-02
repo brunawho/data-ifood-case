@@ -5,8 +5,9 @@ de *yellow taxi* (jan–mai/2023) na camada bronze.
 
 **Base analisada:** 16.186.386 registros, 5 arquivos de origem.
 
-Cada regra da camada silver está ancorada em um número medido. Nenhuma decisão
-de limpeza foi tomada por suposição.
+Cada regra da camada silver está ancorada em um comportamento medido na base.
+Onde uma interpretação não pôde ser comprovada com as colunas disponíveis, ela
+está declarada como hipótese, e a decisão correspondente é conservadora.
 
 ---
 
@@ -132,9 +133,10 @@ extremos não devem ser citados como exatos.
 | 8 | 65 | 0,0004% |
 | 9 | 19 | 0,0001% |
 
-Valores 1 a 6 são plausíveis: táxis de NY comportam 4 passageiros, e minivans
-autorizadas comportam 5, com criança de colo permitida adicionalmente. Os
-valores 7 a 9 (112 registros no total) excedem qualquer configuração legal.
+Valores 1 a 6 concentram 99,99% dos registros e são compatíveis com a
+capacidade de um táxi licenciado em Nova York (o limite regulamentar é de 4
+passageiros em sedan e 5 em minivan, com criança de colo permitida
+adicionalmente). Os valores 7 a 9 somam 112 registros e excedem essa faixa.
 
 ### Impacto na resposta (maio/2023, 3.513.645 corridas)
 
@@ -201,9 +203,15 @@ Nenhum nulo nas colunas críticas:
 | 1 | 4.372.609 |
 | **6** | **3.983** |
 
-O dicionário de dados da TLC consultado para os arquivos de 2023 lista apenas os
-fornecedores 1 (Creative Mobile Technologies) e 2 (VeriFone). O valor 6 aparece
-em 3.983 registros sem correspondência nessa versão.
+O dicionário de dados publicado pela NYC TLC para os arquivos de *yellow taxi*
+lista os fornecedores 1 (Creative Mobile Technologies) e 2 (VeriFone).
+
+**Referência:** *Data Dictionary — Yellow Taxi Trip Records*, disponível em
+<https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page>, consultado em
+agosto de 2026. O documento não é versionado publicamente por data, então esta
+análise se apoia na versão vigente no momento do acesso.
+
+O valor 6 aparece em 3.983 registros sem correspondência nessa versão.
 
 **Isso não significa que o valor seja inválido.** O domínio pode ter evoluído
 sem que a versão consultada refletisse a mudança, e não há como distinguir, com

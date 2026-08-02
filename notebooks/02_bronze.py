@@ -33,7 +33,7 @@ mostrar_configuracao()
 # MAGIC %md
 # MAGIC ## Carga
 # MAGIC
-# MAGIC Mantenha a mesma lista de períodos usada no `01_landing`, a bronze lê da
+# MAGIC Mantenha a mesma lista de períodos usada no `01_landing` — a bronze lê da
 # MAGIC landing, então só processa o que já foi baixado.
 # MAGIC
 # MAGIC A escrita usa `replaceWhere` por partição: reprocessar março não toca nos
@@ -57,7 +57,7 @@ print(f"{'TOTAL':<7} {sum(contagens.values()):>12,} registros".replace(",", ".")
 # MAGIC ## Validação
 # MAGIC
 # MAGIC Três checagens que respondem perguntas específicas. `SELECT *` mostraria
-# MAGIC apenas que tem dado lá, o que não interessa.
+# MAGIC apenas que "tem dado lá", o que não interessa.
 
 # COMMAND ----------
 
@@ -115,8 +115,11 @@ print(f"{'TOTAL':<7} {sum(contagens.values()):>12,} registros".replace(",", ".")
 # MAGIC partição teria registros com horários de ingestão distintos.
 # MAGIC
 # MAGIC **Resultado esperado: zero linhas.** Rode a célula de carga duas vezes e
-# MAGIC confira que continua vazia, é assim que se prova idempotência, não
-# MAGIC afirmando no README.
+# MAGIC confira que continua vazia.
+# MAGIC
+# MAGIC A verificação cobre o cenário de reexecução da mesma carga. Não detecta
+# MAGIC duplicatas presentes dentro de um único arquivo de origem, nem uma
+# MAGIC republicação da TLC com o mesmo tamanho de bytes.
 
 # COMMAND ----------
 
