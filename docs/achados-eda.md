@@ -67,14 +67,16 @@ as duas categorias. O critério correto é a **janela do escopo**, não o arquiv
 | **Não-positivos** | **144.146** | **0,8905%** |
 | Soma dos negativos | −US$ 3.488.304,77 | |
 
-A interpretação usual é que **não sejam corrupção**: a TLC registraria reversões e ajustes
-contábeis como lançamentos negativos, mantendo a corrida original na base. São
-registros legítimos com semântica própria.
+Os valores não-positivos podem representar reversões, ajustes contábeis ou
+outros eventos operacionais. **A base não permite determinar sua natureza com
+segurança:** não há campo que identifique reversão nem chave que permita parear
+um lançamento negativo com a corrida que ele corrigiria.
 
-> **Decisão:** manter na silver, excluir da métrica na gold. A silver é camada de
-> consumo genérica, descartar esses registros ali destruiria informação e
-> impediria análises contábeis legítimas. Já a média de valor por corrida não
-> deve somar lançamentos de correção.
+> **Decisão:** preservar na silver e sinalizar com `flag_valor_nao_positivo`.
+> Descartá-los na camada de consumo destruiria informação cuja natureza não foi
+> determinada. A métrica literal, que é a resposta oficial do case, inclui todos
+> os registros; a versão que os exclui é apresentada apenas como análise de
+> sensibilidade, com a interpretação declarada.
 
 ### Distribuição
 
@@ -275,8 +277,8 @@ pondera pelo volume real.
 | 1 | Corridas fora de jan–mai/2023 | 104 | 0,00064% | Descartar |
 | 2 | Duração ≤ 0 | 6.181 | 0,0382% | Descartar |
 | 3 | Duração acima de 24h | 94 | 0,0006% | Manter, sinalizar |
-| 4 | `total_amount` negativo | 141.407 | 0,8736% | Manter, sinalizar |
-| 5 | `total_amount` zero | 2.739 | 0,0169% | Manter, sinalizar; excluir na gold |
+| 4 | `total_amount` negativo | 141.407 | 0,8736% | Manter, sinalizar; exclusão só em sensibilidade |
+| 5 | `total_amount` zero | 2.739 | 0,0169% | Manter, sinalizar; exclusão só em sensibilidade |
 | 6 | `total_amount` extremo | 11 | 0,00007% | Manter — sem efeito mensurável |
 | 7 | `passenger_count` nulo | 428.665 | 2,6483% | Manter; `AVG` ignora nativamente |
 | 8 | `passenger_count` zero | 273.481 | 1,6896% | Manter, sinalizar |

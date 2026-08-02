@@ -148,7 +148,7 @@ print(f"Descarte    : {100 * resultado['descartados'] / total:.4f}%")
 # MAGIC   SUM(CASE WHEN flag_passageiros_ausente     THEN 1 ELSE 0 END)    AS passageiros_ausente,
 # MAGIC   SUM(CASE WHEN flag_passageiros_zero        THEN 1 ELSE 0 END)    AS passageiros_zero,
 # MAGIC   SUM(CASE WHEN flag_passageiros_implausivel THEN 1 ELSE 0 END)    AS passageiros_implausivel,
-# MAGIC   SUM(CASE WHEN flag_fornecedor_desconhecido THEN 1 ELSE 0 END)    AS fornecedor_desconhecido
+# MAGIC   SUM(CASE WHEN flag_vendor_fora_dicionario THEN 1 ELSE 0 END)    AS vendor_fora_dicionario
 # MAGIC FROM workspace.silver.fact_yellow_trips
 
 # COMMAND ----------

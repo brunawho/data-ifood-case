@@ -68,8 +68,9 @@ print(f"gold.yellow_trips_hourly_passengers  : {contagens['hourly']} linhas")
 # MAGIC campo que identifique reversão nem chave que permita parear um lançamento
 # MAGIC negativo com a corrida que ele corrigiria.
 # MAGIC
-# MAGIC Por isso a resposta oficial inclui todos os registros. A versão que os
-# MAGIC exclui aparece como análise de sensibilidade, com a hipótese declarada.
+# MAGIC Por isso a resposta oficial inclui todos os registros. Excluí-los
+# MAGIC pressuporia que representam correções, e não corridas de valor zero ou
+# MAGIC negativo por outro motivo operacional.
 
 # COMMAND ----------
 
@@ -168,8 +169,8 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 # MAGIC
 # MAGIC **A resposta oficial é a literal**, sobre todos os registros da camada de
 # MAGIC consumo (colunas `resposta_*`). As colunas `sensib_*` excluem os
-# MAGIC lançamentos não-positivos e dependem de uma hipótese de negócio que os
-# MAGIC dados não comprovam.
+# MAGIC lançamentos não-positivos. Excluí-los pressupõe que representem
+# MAGIC reversões ou ajustes, interpretação que os dados não comprovam.
 # MAGIC
 # MAGIC Note a distinção entre **média simples** e **média ponderada** na leitura
 # MAGIC (a): a média das cinco médias mensais atribui peso igual a cada mês,

@@ -182,8 +182,8 @@ grandeza. Ambas são entregues:
 
 A resposta em negrito é a **literal**: todos os registros da camada de consumo.
 A coluna à direita exclui os 143.792 lançamentos com `total_amount` ≤ 0 e
-depende da hipótese de que sejam reversões, que os dados não comprovam. É
-análise de sensibilidade, não a resposta.
+pressupõe que representem reversões ou ajustes, interpretação que os dados não
+comprovam. É análise de sensibilidade, não a resposta.
 
 ### Pergunta 2 — média de passageiros por hora (maio/2023)
 
@@ -254,7 +254,7 @@ pytest                                  # suíte completa (requer JDK 8/11/17)
 pytest tests/test_config_e_ingestao.py  # não cria SparkSession, mas importa pyspark
 ```
 
-São 29 funções de teste (mais de 40 casos, contando os parametrizados) cobrindo
+São 32 funções de teste, expandidas em 47 casos pelos parametrizados, cobrindo
 as funções puras e as regras de qualidade da silver. Os que verificam a
 classificação de registros usam uma `SparkSession` local e dados sintéticos, sem
 exigir os arquivos da TLC.

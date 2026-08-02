@@ -20,6 +20,7 @@ pyspark==3.5.1
 delta-spark==3.2.0
 
 # --- Testes ---------------------------------------------------------------- #
-# Os testes de `tests/test_silver_regras.py` exigem PySpark; os demais rodam
-# apenas com pytest.
+# Toda a suíte exige que o pacote pyspark seja importável, inclusive
+# `test_config_e_ingestao.py`, que importa `src.transform.bronze`. Só
+# `test_silver_regras.py` cria uma SparkSession e, portanto, precisa de JVM.
 pytest==8.3.3

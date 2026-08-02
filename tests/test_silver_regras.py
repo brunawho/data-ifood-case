@@ -146,10 +146,11 @@ def test_corrida_na_virada_do_mes_e_preservada(spark):
 # --------------------------------------------------------------------------
 @pytest.mark.parametrize("valor", [-982.95, -10.0, 0.0])
 def test_valor_nao_positivo_e_sinalizado_mas_nao_descartado(spark, valor):
-    """Estornos são registros contábeis legítimos.
+    """Valores não-positivos não são descartados.
 
-    Descartá-los na silver decidiria, por todos os consumidores da tabela, que
-    ninguém vai querer analisá-los. A exclusão pertence à métrica, na gold.
+    Sua natureza não pode ser determinada com as colunas disponíveis, então
+    descartá-los na camada de consumo eliminaria informação sem base para isso.
+    A exclusão, quando desejada, é decisão da métrica.
     """
     df = classificar(spark, [corrida(valor=valor)])
     linha = df.select("motivo_descarte", "flag_valor_nao_positivo").collect()[0]
@@ -158,7 +159,11 @@ def test_valor_nao_positivo_e_sinalizado_mas_nao_descartado(spark, valor):
 
 
 def test_duracao_extrema_e_sinalizada_mas_nao_descartada(spark):
-    """167 horas é implausível, mas não impossível (taxímetro esquecido)."""
+    """167 horas é implausível, mas não impossível.
+
+    Não há critério objetivo para descartar: a duração longa pode ter causas
+    operacionais que as colunas disponíveis não revelam.
+    """
     df = classificar(spark, [corrida(duracao_min=48 * 60)])
     linha = df.select("motivo_descarte", "flag_duracao_extrema").collect()[0]
     assert linha["motivo_descarte"] is None
@@ -190,16 +195,16 @@ def test_passageiro_zero_e_preservado(spark):
 
 @pytest.mark.parametrize("n, implausivel", [(4, False), (6, False), (7, True), (9, True)])
 def test_limite_de_passageiros_segue_a_capacidade_legal(spark, n, implausivel):
-    """4 em sedan, 5 em minivan, mais criança de colo. Acima de 6 não existe."""
+    """Capacidade legal em NY: 4 em sedan, 5 em minivan, mais criança de colo."""
     df = classificar(spark, [corrida(passageiros=n)])
     assert df.collect()[0]["flag_passageiros_implausivel"] is implausivel
 
 
-@pytest.mark.parametrize("vendor, desconhecido", [(1, False), (2, False), (6, True)])
-def test_fornecedor_fora_do_dicionario_e_sinalizado(spark, vendor, desconhecido):
-    """A TLC documenta apenas 1 e 2 para 2023."""
+@pytest.mark.parametrize("vendor, fora_do_dicionario", [(1, False), (2, False), (6, True)])
+def test_vendor_fora_do_dicionario_e_sinalizado(spark, vendor, fora_do_dicionario):
+    """O dicionário consultado para esta análise contém os códigos 1 e 2."""
     df = classificar(spark, [corrida(vendor=vendor)])
-    assert df.collect()[0]["flag_fornecedor_desconhecido"] is desconhecido
+    assert df.collect()[0]["flag_vendor_fora_dicionario"] is fora_do_dicionario
 
 
 # --------------------------------------------------------------------------

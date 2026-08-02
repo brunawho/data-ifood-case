@@ -29,11 +29,14 @@ logger = logging.getLogger(__name__)
 
 PARTITION_COLUMN = "pickup_year_month"
 
-# Fornecedores presentes no dicionário de dados da TLC consultado para os
-# arquivos de 2023 (`data_dictionary_trip_records_yellow.pdf`, versão vigente na
-# data desta análise). O domínio pode evoluir: valores fora desta lista são
-# tratados como anomalia a investigar, não como registro inválido.
-KNOWN_VENDORS = (1, 2)
+# Domínio esperado de VendorID para o escopo desta análise: 1 (Creative Mobile
+# Technologies) e 2 (VeriFone), conforme o dicionário de dados publicado pela
+# TLC em https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+#
+# A lista não é uma afirmação de completude: o domínio pode ter evoluído sem que
+# a versão consultada refletisse. Valores fora dela são sinalizados como
+# anomalia a investigar, nunca descartados.
+EXPECTED_VENDORS = (1, 2)
 
 # 4 passageiros em sedan, 5 em minivan autorizada, mais criança de colo. Acima
 # de 6 não corresponde a nenhuma configuração legal em NY.
@@ -87,7 +90,7 @@ def classify(df: DataFrame) -> DataFrame:
             F.col("passenger_count") > MAX_PLAUSIBLE_PASSENGERS,
         )
         .withColumn(
-            "flag_fornecedor_desconhecido", ~F.col("VendorID").isin(*KNOWN_VENDORS)
+            "flag_vendor_fora_dicionario", ~F.col("VendorID").isin(*EXPECTED_VENDORS)
         )
         # Motivo do descarte; NULL significa registro válido.
         .withColumn(
