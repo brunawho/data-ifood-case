@@ -113,7 +113,7 @@ display(spark.createDataFrame(manifest))
 # MAGIC ### 3. O arquivo é um Parquet legível?
 # MAGIC
 # MAGIC Tamanho correto não garante arquivo válido. Ler o schema é o teste mais
-# MAGIC barato de integridade — e já antecipa o que a bronze vai encontrar.
+# MAGIC barato de integridade e já antecipa o que a bronze vai encontrar.
 
 # COMMAND ----------
 
