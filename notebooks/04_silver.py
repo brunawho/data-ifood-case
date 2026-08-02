@@ -7,14 +7,16 @@
 # MAGIC
 # MAGIC **Regras aplicadas** (derivadas de `docs/achados-eda.md`, não de suposição):
 # MAGIC
+# MAGIC Volumes medidos na silver, após os descartes.
+# MAGIC
 # MAGIC | Ação | Critério | Volume |
 # MAGIC |---|---|---|
 # MAGIC | Descartar | *pickup* fora de jan–mai/2023 | 104 |
 # MAGIC | Descartar | duração ≤ 0 | 6.180 |
-# MAGIC | Sinalizar | `total_amount` ≤ 0 (estornos) | 144.146 |
+# MAGIC | Sinalizar | `total_amount` ≤ 0 | 143.792 |
 # MAGIC | Sinalizar | duração acima de 24h | 94 |
-# MAGIC | Sinalizar | `passenger_count` nulo / zero / acima de 6 | 702.258 |
-# MAGIC | Sinalizar | `VendorID` fora do domínio documentado | 3.983 |
+# MAGIC | Sinalizar | `passenger_count` nulo / zero / acima de 6 | 700.902 |
+# MAGIC | Sinalizar | `VendorID` fora do domínio documentado | 3.209 |
 # MAGIC
 # MAGIC Descarta apenas o comprovadamente inválido. O suspeito é preservado com
 # MAGIC sinalização, porque a silver precisa servir perguntas ainda não formuladas
@@ -182,5 +184,5 @@ print(f"Descarte    : {100 * resultado['descartados'] / total:.4f}%")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Silver pronta e consultável por SQL. Próximo: **`05_analise`**, com as
+# MAGIC Silver pronta e consultável por SQL. Próximo: **`05_analise_gold`**, com as
 # MAGIC respostas às duas perguntas do case.

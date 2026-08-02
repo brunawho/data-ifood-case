@@ -65,6 +65,20 @@ display(resultados)
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC Falha em um período não aborta os demais durante o download, para não
+# MAGIC perder o que já foi baixado. Mas seguir para a bronze com a landing
+# MAGIC incompleta produziria uma base parcial silenciosamente, então a execução
+# MAGIC para aqui se algum período falhou.
+
+# COMMAND ----------
+
+falhas = [r for r in resultados if r["status"] == "failed"]
+assert not falhas, f"Landing incompleta: {[f['period'] for f in falhas]}"
+print(f"{len(resultados)} período(s) na landing, nenhuma falha.")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Validação da landing
 
 # COMMAND ----------
@@ -113,7 +127,7 @@ display(spark.createDataFrame(manifest))
 # MAGIC ### 3. O arquivo é um Parquet legível?
 # MAGIC
 # MAGIC Tamanho correto não garante arquivo válido. Ler o schema é o teste mais
-# MAGIC barato de integridade e já antecipa o que a bronze vai encontrar.
+# MAGIC barato de integridade — e já antecipa o que a bronze vai encontrar.
 
 # COMMAND ----------
 

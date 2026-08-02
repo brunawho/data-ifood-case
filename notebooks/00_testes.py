@@ -49,9 +49,11 @@ print(f"\nCódigo de saída: {codigo}  (0 = todos passaram)")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Só os testes que não precisam de Spark
+# MAGIC ### Testes que não criam SparkSession
 # MAGIC
-# MAGIC Mais rápidos. Úteis ao alterar configuração ou a lógica de ingestão.
+# MAGIC Mais rápidos, úteis ao alterar configuração ou a lógica de ingestão. Ainda
+# MAGIC exigem que o pacote `pyspark` seja importável, porque alguns deles
+# MAGIC importam `src.transform.bronze`.
 
 # COMMAND ----------
 

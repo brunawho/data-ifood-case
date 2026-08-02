@@ -28,8 +28,13 @@ decisão que altera o resultado por um fator de milhões.
 
 ### Tratamento de lançamentos não-positivos
 
-A base contém 143.792 lançamentos com `total_amount` ≤ 0, sendo 141.407
-negativos e 2.739 zerados.
+A camada silver contém **143.792** lançamentos com `total_amount` ≤ 0.
+
+Na camada bronze, antes da limpeza, eram 144.146 (141.407 negativos e 2.739
+zerados). A diferença de 354 são registros que também violavam alguma regra de
+descarte — escopo temporal ou duração não-positiva — e por isso não chegaram à
+silver. Os números desta seção referem-se sempre à silver, que é a camada de
+consumo.
 
 **A interpretação usual** é que sejam estornos e ajustes contábeis: a TLC
 registraria a correção como linha de valor negativo, mantendo a corrida
@@ -113,18 +118,26 @@ artificialmente.
 O comportamento nativo do `AVG`, ignorar nulos, é o adotado. As alternativas são
 exibidas na tabela para tornar a decisão auditável.
 
-**Ressalva sobre viés.** Ignorar valores ausentes só produz média não-enviesada
-se a ausência for independente da variável medida. Os dados desta base indicam
-que essa condição **não se sustenta**: a taxa de ausência varia de 2,4% às 12h a
-9,5% às 4h, quase quatro vezes mais na madrugada. Ausência que depende da hora
-do dia não é aleatória.
+**Ressalva sobre viés.** A taxa de ausência não é uniforme ao longo do dia:
+varia de 2,4% às 12h a 9,5% às 4h.
 
-A consequência é que as horas de maior ausência são estimadas sobre amostra
-menos completa, e o viés não pode ser quantificado sem saber o que caracteriza
-as corridas não registradas. As três alternativas de tratamento delimitam a
-faixa plausível: às 4h, a diferença entre ignorar nulos e tratá-los como zero
-chega a 0,13 passageiro. Corrigir o viés exigiria informação que o dataset não
-fornece; declará-lo é o que cabe aqui.
+Como a média é calculada **separadamente para cada hora**, essa variação entre
+horas não implica viés por si só: o agrupamento já separa os grupos. A condição
+que importaria é outra e mais estreita: dentro de uma mesma hora, a
+probabilidade de o `passenger_count` estar ausente precisaria ser independente
+do número real de passageiros daquela corrida.
+
+**Não é possível verificar essa condição com as colunas disponíveis.** O
+dataset não informa nada sobre as corridas cujo campo ficou vazio, então não há
+como testar se elas diferem sistematicamente das registradas. O viés das médias
+horárias permanece, portanto, **desconhecido** — não demonstrado, mas também não
+descartado. As horas de maior ausência são as que apoiam a estimativa em amostra
+menos completa, o que aumenta a incerteza mesmo sem viés.
+
+As três colunas de tratamento na tabela não delimitam um intervalo de confiança:
+tratar nulo como zero é um limite inferior artificial, e restringir a valores
+positivos não é necessariamente um limite superior para os ausentes. Servem para
+mostrar a sensibilidade da resposta à escolha, não para acotar a verdade.
 
 ### Resultado — maio/2023
 

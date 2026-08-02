@@ -148,10 +148,12 @@ A escolha desloca a resposta em até 4,8%.
 > tratar como zero introduziria viés para baixo. Adota-se o comportamento nativo
 > do `AVG`, que ignora nulos.
 >
-> **Com uma ressalva:** essa escolha só é não-enviesada se a ausência for
-> independente da variável medida, e a análise horária mostra que não é (2,4% de
-> ausência às 12h contra 9,5% às 4h). O viés residual não é quantificável com as
-> colunas disponíveis, então é declarado em vez de corrigido.
+> **Com uma ressalva:** a taxa de ausência varia por hora (2,4% às 12h contra
+> 9,5% às 4h). Como a média é calculada por hora, essa variação não implica viés
+> por si só — o agrupamento já separa os grupos. A condição relevante seria a
+> ausência ser independente do número de passageiros *dentro* de cada hora, e
+> isso não é verificável com as colunas disponíveis. O viés permanece
+> desconhecido, e é declarado como tal.
 > Registros com `passenger_count = 0` são preservados na silver e sinalizados,
 > por não haver como distinguir erro de digitação de corrida cancelada.
 

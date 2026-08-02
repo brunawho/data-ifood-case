@@ -1,9 +1,9 @@
 """
-Testes que não exigem Spark.
+Testes de configuração, resolução de caminhos e idempotência da ingestão.
 
-Cobrem a resolução de caminhos, o casamento caixa-insensitivo de colunas e a
-lógica de idempotência da ingestão. São rápidos o bastante para rodar a cada
-commit.
+Não criam `SparkSession`, mas alguns importam `src.transform.bronze`, que
+importa PySpark no topo do módulo. Portanto **exigem que o pacote pyspark esteja
+instalado**, ainda que não precisem de JVM nem de cluster. Rodam em segundos.
 """
 
 from __future__ import annotations

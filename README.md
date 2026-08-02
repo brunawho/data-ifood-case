@@ -113,11 +113,13 @@ registros (**0,039% da base**) em duas categorias: corrida fora do escopo
 temporal (104) e corrida com duração não-positiva (6.180). Tudo o mais é
 preservado e **sinalizado** em colunas `flag_*`.
 
-O caso mais relevante são os 143.792 lançamentos com `total_amount` ≤ 0. Não são
-corrupção: a TLC registra estornos e ajustes contábeis como linhas negativas.
-Removê-los na silver decidiria, em nome de todos os futuros consumidores da
-tabela, que ninguém vai querer analisar estorno. Decisões de métrica pertencem
-à gold.
+O caso mais relevante são os 143.792 lançamentos com `total_amount` ≤ 0 na
+silver. A interpretação usual é que sejam estornos e ajustes contábeis, mas o
+dataset não traz campo que identifique reversão nem chave que permita parear um
+lançamento negativo com a corrida que ele corrigiria: é hipótese de negócio, não
+fato observado. Por isso são preservados e sinalizados como
+`flag_valor_nao_positivo`, e a resposta oficial do case é a literal, com todos os
+registros.
 
 **Nada é descartado silenciosamente.** O que sai da silver vai para uma tabela
 de quarentena com o motivo, e a validação confere que silver + quarentena
@@ -145,9 +147,10 @@ coberta por testes. Notebook que concentra regra de negócio não é nenhuma des
 coisas.
 
 **As regras de qualidade têm testes.** Cada decisão de descarte ou sinalização
-tem um teste correspondente, com dados sintéticos. Isso protege contra regressão
-silenciosa: alterar o limite de passageiros ou a janela temporal sem atualizar a
-documentação quebra a suíte.
+tem um teste correspondente, com dados sintéticos, o que protege contra
+regressão silenciosa nas regras de negócio. A cobertura para no limite da
+lógica pura: escrita Delta, `replaceWhere` e conservação após gravação
+permanecem validados por consulta manual nos notebooks.
 
 **Linhagem registrada.** A landing mantém um manifesto (`JSONL`) com origem,
 destino, tamanho, *checksum* SHA-256 e horário de cada arquivo ingerido, e cada
@@ -167,10 +170,15 @@ detectada.
 O enunciado admite duas leituras, com respostas separadas por seis ordens de
 grandeza. Ambas são entregues:
 
-| Leitura | Resposta |
-|---|---|
-| **(a)** Ticket médio por corrida | **US$ 28,26** (simples) / **US$ 28,30** (ponderada) |
-| **(b)** Faturamento mensal da frota | **US$ 90.780.494,37** |
+| Leitura | Resposta | Sem lançamentos não-positivos |
+|---|---|---|
+| **(a)** Ticket médio por corrida | **US$ 27,79** (simples) / **US$ 27,84** (ponderada) | US$ 28,26 / US$ 28,30 |
+| **(b)** Faturamento mensal da frota | **US$ 90.120.269,65** | US$ 90.780.494,37 |
+
+A resposta em negrito é a **literal**: todos os registros da camada de consumo.
+A coluna à direita exclui os 143.792 lançamentos com `total_amount` ≤ 0 e
+depende da hipótese de que sejam estornos, que os dados não comprovam. É
+análise de sensibilidade, não a resposta.
 
 ### Pergunta 2 — média de passageiros por hora (maio/2023)
 
@@ -238,7 +246,7 @@ pipeline roda.
 ```bash
 pip install -r requirements.txt
 pytest                                  # suíte completa (requer JDK 8/11/17)
-pytest tests/test_config_e_ingestao.py  # só o que não precisa de Spark
+pytest tests/test_config_e_ingestao.py  # não cria SparkSession, mas importa pyspark
 ```
 
 São 29 funções de teste (mais de 40 casos, contando os parametrizados) cobrindo
@@ -246,11 +254,15 @@ as funções puras e as regras de qualidade da silver. Os que verificam a
 classificação de registros usam uma `SparkSession` local e dados sintéticos, sem
 exigir os arquivos da TLC.
 
-Cada teste corresponde a uma decisão documentada em `docs/achados-eda.md`:
-que corrida fora do escopo é descartada, que estorno é sinalizado e **não**
-descartado, que a competência vem da data da corrida e não do arquivo, que nulo
-de `passenger_count` não vira zero. Alterar uma regra sem alterar a
-documentação faz o teste falhar.
+Os testes cobrem as regras de classificação: que corrida fora do escopo é
+descartada, que lançamento não-positivo é sinalizado e **não** descartado, que a
+competência vem da data da corrida e não do arquivo, que nulo de
+`passenger_count` não vira zero.
+
+**O que não está coberto:** as operações de I/O e Delta. Não há teste de
+integração que leia um Parquet real, exercite o `replaceWhere` da bronze ou
+verifique a conservação após as escritas. Essas validações continuam sendo
+consultas manuais nos notebooks.
 
 ### Variáveis de ambiente
 

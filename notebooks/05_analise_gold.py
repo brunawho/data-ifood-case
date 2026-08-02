@@ -62,12 +62,14 @@ print(f"gold.yellow_trips_hourly_passengers  : {contagens['hourly']} linhas")
 # MAGIC
 # MAGIC ## A decisão sobre estornos
 # MAGIC
-# MAGIC A base contém 143.792 lançamentos com `total_amount` ≤ 0: estornos e
-# MAGIC ajustes contábeis registrados pela TLC como linhas negativas, e não como
-# MAGIC remoção da corrida original. São legítimos e ficam preservados na silver.
+# MAGIC A camada silver contém 143.792 lançamentos com `total_amount` ≤ 0. A
+# MAGIC interpretação usual é que sejam estornos e ajustes contábeis registrados
+# MAGIC pela TLC como linhas negativas, mas **o dataset não comprova isso**: não há
+# MAGIC campo que identifique reversão nem chave que permita parear um lançamento
+# MAGIC negativo com a corrida que ele corrigiria.
 # MAGIC
-# MAGIC Para a métrica de valor por corrida, incluí-los distorce: um estorno não é
-# MAGIC uma corrida. As duas versões são apresentadas.
+# MAGIC Por isso a resposta oficial inclui todos os registros. A versão que os
+# MAGIC exclui aparece como análise de sensibilidade, com a hipótese declarada.
 
 # COMMAND ----------
 
@@ -156,6 +158,11 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 # MAGIC
 # MAGIC Média entre as cinco competências, nas duas leituras.
 # MAGIC
+# MAGIC **A resposta oficial é a literal**, sobre todos os registros da camada de
+# MAGIC consumo (colunas `resposta_*`). As colunas `sensib_*` excluem os
+# MAGIC lançamentos não-positivos e dependem de uma hipótese de negócio que os
+# MAGIC dados não comprovam.
+# MAGIC
 # MAGIC Note a distinção entre **média simples** e **média ponderada** na leitura
 # MAGIC (a): a média das cinco médias mensais atribui peso igual a cada mês,
 # MAGIC ignorando que maio teve cerca de 20% mais corridas que fevereiro. A média
@@ -172,10 +179,15 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- Leitura (a): ticket medio por corrida
+# MAGIC -- Leitura (a): ticket medio por corrida.
+# MAGIC -- `resposta_*` sao a resposta oficial (todos os registros). As colunas
+# MAGIC -- `sensib_*` excluem os lancamentos nao-positivos e dependem da hipotese
+# MAGIC -- de que sejam estornos, que os dados nao comprovam.
 # MAGIC SELECT
-# MAGIC   ROUND(AVG(ticket_medio_sem_estornos), 2)                          AS media_simples,
-# MAGIC   ROUND(SUM(faturamento_sem_estornos) / SUM(corridas_faturadas), 2) AS media_ponderada
+# MAGIC   ROUND(AVG(ticket_medio_bruto), 2)                                 AS resposta_media_simples,
+# MAGIC   ROUND(SUM(faturamento_bruto) / SUM(corridas), 2)                  AS resposta_media_ponderada,
+# MAGIC   ROUND(AVG(ticket_medio_sem_estornos), 2)                          AS sensib_media_simples,
+# MAGIC   ROUND(SUM(faturamento_sem_estornos) / SUM(corridas_faturadas), 2) AS sensib_media_ponderada
 # MAGIC FROM workspace.gold.yellow_trips_monthly
 
 # COMMAND ----------
@@ -183,10 +195,11 @@ assert divergencias == 0, "As duas implementações produzem resultados diferent
 # MAGIC %sql
 # MAGIC -- Leitura (b): faturamento mensal da frota
 # MAGIC SELECT
-# MAGIC   ROUND(AVG(faturamento_sem_estornos), 2) AS faturamento_medio_mensal,
-# MAGIC   ROUND(MIN(faturamento_sem_estornos), 2) AS menor_mes,
-# MAGIC   ROUND(MAX(faturamento_sem_estornos), 2) AS maior_mes,
-# MAGIC   ROUND(SUM(faturamento_sem_estornos), 2) AS total_no_periodo
+# MAGIC   ROUND(AVG(faturamento_bruto), 2)        AS resposta_faturamento_medio,
+# MAGIC   ROUND(MIN(faturamento_bruto), 2)        AS menor_mes,
+# MAGIC   ROUND(MAX(faturamento_bruto), 2)        AS maior_mes,
+# MAGIC   ROUND(SUM(faturamento_bruto), 2)        AS total_no_periodo,
+# MAGIC   ROUND(AVG(faturamento_sem_estornos), 2) AS sensib_faturamento_medio
 # MAGIC FROM workspace.gold.yellow_trips_monthly
 
 # COMMAND ----------
