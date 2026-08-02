@@ -23,6 +23,12 @@ dbutils.library.restartPython()
 import os
 import sys
 
+# O filesystem do Workspace não permite criar diretórios `__pycache__`, e o
+# Python tenta gravar bytecode ao importar cada módulo de teste. Sem isto, a
+# execução falha com OSError [Errno 95] antes de rodar qualquer asserção.
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+
 REPO_ROOT = os.path.abspath(os.path.join(os.getcwd(), ".."))
 os.chdir(REPO_ROOT)
 if REPO_ROOT not in sys.path:
