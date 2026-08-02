@@ -140,6 +140,48 @@ def test_tipos_canonicos_cobrem_as_colunas_exigidas(config_local):
         assert coluna in CANONICAL_TYPES
 
 
+def test_coluna_obrigatoria_ausente_interrompe_a_ingestao():
+    """As cinco colunas exigidas pelo case não podem virar NULL em silêncio.
+
+    Preenchê-las com NULL produziria uma camada de consumo inutilizável sem
+    nenhum sinal de erro.
+    """
+    from src.transform.bronze import check_required_columns
+
+    origem_incompleta = [
+        "VendorID",
+        "tpep_pickup_datetime",
+        "tpep_dropoff_datetime",
+        "passenger_count",
+        # total_amount ausente
+    ]
+    with pytest.raises(ValueError, match="total_amount"):
+        check_required_columns(origem_incompleta, "2023-03")
+
+
+def test_coluna_opcional_ausente_nao_interrompe(config_local):
+    """Só as cinco do case são obrigatórias; as demais podem faltar."""
+    from src.transform.bronze import check_required_columns
+
+    check_required_columns(list(config_local.REQUIRED_COLUMNS), "2023-03")
+
+
+def test_validacao_de_obrigatorias_ignora_caixa():
+    """A TLC já trocou a caixa de nomes de coluna entre versões."""
+    from src.transform.bronze import check_required_columns
+
+    check_required_columns(
+        [
+            "vendorid",
+            "TPEP_Pickup_Datetime",
+            "tpep_dropoff_datetime",
+            "Passenger_Count",
+            "TOTAL_AMOUNT",
+        ],
+        "2023-03",
+    )
+
+
 def test_horarios_permanecem_sem_fuso():
     """`TIMESTAMP_NTZ` preservado.
 

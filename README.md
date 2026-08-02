@@ -269,6 +269,11 @@ integração que leia um Parquet real, exercite o `replaceWhere` da bronze ou
 verifique a conservação após as escritas. Essas validações continuam sendo
 consultas manuais nos notebooks.
 
+A validação de colunas obrigatórias é testada como função pura
+(`check_required_columns`), o que cobre a regra mas não prova que `read_landing`
+a invoca. Um teste de integração exigiria gravar um Parquet, e o compute
+serverless bloqueia escrita fora dos Volumes do Unity Catalog.
+
 ### Variáveis de ambiente
 
 | Variável | Padrão | Descrição |

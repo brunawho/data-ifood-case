@@ -68,6 +68,27 @@ def _resolve(available: list[str], wanted: str) -> str | None:
     return lookup.get(wanted.lower())
 
 
+def check_required_columns(available: list[str], period: str) -> None:
+    """Falha se faltar alguma coluna exigida pelo case na camada de consumo.
+
+    Preencher uma dessas cinco com NULL produziria uma camada de consumo
+    silenciosamente inutilizável. Colunas opcionais podem faltar: viram NULL
+    com aviso.
+
+    Raises:
+        ValueError: se qualquer coluna de `config.REQUIRED_COLUMNS` estiver
+            ausente, considerando o casamento caixa-insensitivo.
+    """
+    ausentes = sorted(
+        coluna for coluna in config.REQUIRED_COLUMNS if _resolve(available, coluna) is None
+    )
+    if ausentes:
+        raise ValueError(
+            f"[{period}] colunas obrigatórias ausentes na origem: {ausentes}. "
+            f"Verifique se o schema da TLC mudou."
+        )
+
+
 def read_landing(spark: SparkSession, period: str) -> DataFrame:
     """Lê o parquet original de um período e devolve com tipos canônicos."""
     path = config.landing_file(period)
@@ -84,15 +105,7 @@ def read_landing(spark: SparkSession, period: str) -> DataFrame:
         else:
             projection.append(F.col(f"`{source}`").cast(target_type).alias(column))
 
-    # As cinco colunas exigidas pelo case não podem faltar: preenchê-las com
-    # NULL produziria uma camada de consumo silenciosamente inutilizável. As
-    # demais são opcionais e viram NULL com aviso.
-    obrigatorias_ausentes = sorted(set(config.REQUIRED_COLUMNS) & set(missing))
-    if obrigatorias_ausentes:
-        raise ValueError(
-            f"[{period}] colunas obrigatórias ausentes na origem: "
-            f"{obrigatorias_ausentes}. Verifique se o schema da TLC mudou."
-        )
+    check_required_columns(available, period)
 
     if missing:
         logger.warning("[%s] colunas opcionais ausentes, preenchidas com NULL: %s",
